@@ -1992,7 +1992,7 @@
           card.dataset.id = annotation.id;
           card.innerHTML = [
             "<div class=\"annotation-top\">",
-            "<button class=\"annotation-id mini-select\" type=\"button\"><i class=\"swatch\" style=\"background:" + annotation.color + "\"></i>" + escapeHtml(annotation.label) + "</button>",
+            "<button class=\"annotation-id mini-select\" type=\"button\" title=\"수정창 열기\" aria-label=\"" + escapeHtml(annotation.label) + " 수정창 열기\"><i class=\"swatch\" style=\"background:" + annotation.color + "\"></i>" + escapeHtml(annotation.label) + "</button>",
             "<span class=\"small-note\">" + escapeHtml(TOOL_LABELS[annotation.type] || annotation.type) + "</span>",
             "<span class=\"annotation-actions\">",
             "<button class=\"mini-btn\" data-action=\"edit\" type=\"button\" title=\"이미지 위에서 수정\" aria-label=\"이미지 위에서 수정\"><i class=\"ti ti-pencil\" aria-hidden=\"true\"></i></button>",
@@ -2015,7 +2015,7 @@
             selectAnnotation(annotation.id);
           });
           card.querySelector(".mini-select").addEventListener("click", function () {
-            selectAnnotation(annotation.id);
+            openBubbleEdit(annotation.id);
           });
           card.querySelector("[data-action=\"edit\"]").addEventListener("click", function () {
             openBubbleEdit(annotation.id);
