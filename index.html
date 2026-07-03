@@ -2039,11 +2039,16 @@
       }
 
       function handleDocumentPaste(event) {
-        if (isTextEditingTarget(event.target)) {
+        var annotationId = getAnnotationReferencePasteTarget(event);
+        if (isTextEditingTarget(event.target) && !annotationId) {
           return;
         }
         var file = getClipboardImageFile(event.clipboardData);
         if (!file) {
+          return;
+        }
+        if (annotationId) {
+          pasteReferenceIntoAnnotation(event, file, annotationId);
           return;
         }
         event.preventDefault();
@@ -2060,6 +2065,29 @@
         var activeElement = document.activeElement;
         return referenceDropZone.contains(event.target) ||
           (activeElement && referenceDropZone.contains(activeElement));
+      }
+
+      function getAnnotationReferencePasteTarget(event) {
+        var target = event.target;
+        var select = target && target.closest ? target.closest(".annotation-ref-select") : null;
+        if (!select && document.activeElement && document.activeElement.closest) {
+          select = document.activeElement.closest(".annotation-ref-select");
+        }
+        return select && select.dataset ? select.dataset.refFor || "" : "";
+      }
+
+      function pasteReferenceIntoAnnotation(event, file, annotationId) {
+        event.preventDefault();
+        event.stopPropagation();
+        state.dragDepth = 0;
+        hideDropTarget();
+        var addedReferences = loadReferenceFiles([file]);
+        if (!addedReferences.length) {
+          return;
+        }
+        var reference = addedReferences[addedReferences.length - 1];
+        updateAnnotationReference(annotationId, reference.id);
+        showToast(reference.label + " 레퍼런스가 이 마킹에 연결되었습니다.");
       }
 
       function showDropTarget() {
@@ -2201,11 +2229,12 @@
         if (!imageFiles.length) {
           showToast("PNG, JPG, WEBP 이미지만 사용할 수 있습니다.");
           referenceInput.value = "";
-          return;
+          return [];
         }
 
         var added = 0;
         var blocked = 0;
+        var addedReferences = [];
         imageFiles.forEach(function (file) {
           if (state.references.length >= MAX_REFERENCES) {
             blocked += 1;
@@ -2216,7 +2245,7 @@
             blocked += 1;
             return;
           }
-          addReferenceFile(file, label);
+          addedReferences.push(addReferenceFile(file, label));
           added += 1;
         });
         referenceInput.value = "";
@@ -2225,6 +2254,7 @@
         } else if (added) {
           showToast(added + "개 레퍼런스 이미지가 업로드되었습니다.");
         }
+        return addedReferences;
       }
 
       function addReferenceFile(file, label) {
@@ -2254,6 +2284,7 @@
           removeReferenceImage(reference.id);
         };
         image.src = reference.url;
+        return reference;
       }
 
       function removeReferenceImage(id) {
@@ -2807,7 +2838,7 @@
             "</div>",
             "<div class=\"bubble-controls\">",
             "<label class=\"bubble-type-row\"><span>유형</span><select class=\"edit-type-select\" data-edit-type-for=\"" + escapeHtml(annotation.id) + "\">" + buildEditTypeOptions(annotation) + "</select></label>",
-            "<label class=\"bubble-type-row\"><span>참고</span><select class=\"annotation-ref-select\" data-ref-for=\"" + escapeHtml(annotation.id) + "\">" + buildReferenceOptions(annotation) + "</select></label>",
+            "<label class=\"bubble-type-row\"><span>참고</span><select class=\"annotation-ref-select\" data-ref-for=\"" + escapeHtml(annotation.id) + "\" title=\"Ctrl+V로 레퍼런스 붙여넣기\">" + buildReferenceOptions(annotation) + "</select></label>",
             "</div>",
             "<textarea class=\"bubble-textarea\" placeholder=\"수정 내용 입력\" spellcheck=\"false\"></textarea>"
           ].join("");
@@ -2820,6 +2851,12 @@
           var refSelect = bubble.querySelector(".annotation-ref-select");
           refSelect.addEventListener("change", function () {
             updateAnnotationReference(annotation.id, refSelect.value);
+          });
+          refSelect.addEventListener("paste", function (event) {
+            var file = getClipboardImageFile(event.clipboardData);
+            if (file) {
+              pasteReferenceIntoAnnotation(event, file, annotation.id);
+            }
           });
 
           var textarea = bubble.querySelector("textarea");
