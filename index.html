@@ -408,6 +408,10 @@
       gap: 6px;
     }
 
+    .edit-type-form[hidden] {
+      display: none;
+    }
+
     .edit-type-input {
       width: 100%;
       min-height: 32px;
@@ -727,6 +731,39 @@
     .annotation-type-select:focus {
       border-color: var(--focus);
       box-shadow: 0 0 0 3px rgba(59, 91, 219, 0.12);
+    }
+
+    .inline-edit-type-form {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+      gap: 6px;
+      align-items: center;
+      padding-left: 31px;
+    }
+
+    .inline-edit-type-input {
+      min-width: 0;
+      height: 30px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0 8px;
+      background: #ffffff;
+      color: var(--text);
+      font-size: 12px;
+      font-weight: 680;
+      outline: none;
+    }
+
+    .inline-edit-type-input:focus {
+      border-color: var(--focus);
+      box-shadow: 0 0 0 3px rgba(59, 91, 219, 0.12);
+    }
+
+    .inline-edit-type-form .btn {
+      min-height: 30px;
+      padding: 0 10px;
+      font-size: 12px;
+      white-space: nowrap;
     }
 
     .bubble-textarea {
@@ -1304,7 +1341,7 @@
               <span class="count-pill" id="editTypeCount">0</span>
             </div>
             <div class="edit-type-list" id="editTypeList"></div>
-            <div class="edit-type-form">
+            <div class="edit-type-form" hidden aria-hidden="true">
               <input class="edit-type-input" id="editTypeLabelInput" type="text" placeholder="유형명">
               <button class="btn" id="addEditTypeBtn" type="button">
                 <i class="ti ti-plus" aria-hidden="true"></i>
@@ -1498,6 +1535,8 @@
         label: "번호 라벨"
       };
 
+      var NO_EDIT_TYPE_VALUE = "";
+      var ADD_EDIT_TYPE_VALUE = "__add_edit_type__";
       var DEFAULT_EDIT_TYPE = "text";
       var DEFAULT_EDIT_TYPES = [
         { value: "text", label: "문구수정", tag: "TEXT EDIT" },
@@ -1561,6 +1600,7 @@
         outputVersion: 0,
         promptText: "",
         markedPreviewUrl: "",
+        addingEditTypeFor: "",
         toastTimer: 0,
         dragDepth: 0
       };
@@ -1787,7 +1827,7 @@
           if (raw) {
             var saved = normalizeEditTypes(JSON.parse(raw));
             if (saved.length) {
-              return saved;
+              return mergeDefaultEditTypes(saved);
             }
           }
         } catch (error) {
@@ -1819,7 +1859,7 @@
 
       function normalizeEditType(type) {
         var label = String(type && type.label ? type.label : "").trim().replace(/\s+/g, " ");
-        var tag = normalizeEditTypeTag(type && type.tag ? type.tag : inferEditTypeTag(label));
+        var tag = resolveEditTypeTag(label, type && type.tag ? type.tag : "");
         var value = String(type && type.value ? type.value : "").trim();
         if (!label || !tag) {
           return null;
@@ -1829,6 +1869,23 @@
           label: label,
           tag: tag
         };
+      }
+
+      function mergeDefaultEditTypes(types) {
+        var merged = cloneDefaultEditTypes();
+        var seen = {};
+        merged.forEach(function (type) {
+          seen[type.value] = true;
+          seen[type.label] = true;
+        });
+        types.forEach(function (type) {
+          if (!seen[type.value] && !seen[type.label]) {
+            merged.push(type);
+            seen[type.value] = true;
+            seen[type.label] = true;
+          }
+        });
+        return merged;
       }
 
       function cloneDefaultEditTypes() {
@@ -1864,25 +1921,40 @@
 
       function addEditTypeFromInput() {
         var label = String(editTypeLabelInput.value || "").trim().replace(/\s+/g, " ");
-        var tag = inferEditTypeTag(label);
-        if (!label) {
+        var result = addEditType(label, "");
+        if (result.error === "label") {
           showToast("유형명을 입력하세요.");
           editTypeLabelInput.focus();
           return;
         }
-        if (getEditTypes().some(function (type) { return type.label === label; })) {
+        if (!result.created) {
           showToast("이미 있는 유형명입니다.");
           return;
         }
-        state.editTypes.push({
-          value: createEditTypeValue(label),
-          label: label,
-          tag: tag
-        });
         editTypeLabelInput.value = "";
-        saveEditTypes();
         refreshEditTypeUi();
         showToast("유형이 등록되었습니다.");
+      }
+
+      function addEditType(label, tagValue) {
+        var cleanLabel = String(label || "").trim().replace(/\s+/g, " ");
+        if (!cleanLabel) {
+          return { error: "label" };
+        }
+        var existing = getEditTypes().find(function (type) {
+          return type.label === cleanLabel;
+        });
+        if (existing) {
+          return { type: existing, created: false };
+        }
+        var type = {
+          value: createEditTypeValue(cleanLabel),
+          label: cleanLabel,
+          tag: resolveEditTypeTag(cleanLabel, tagValue)
+        };
+        state.editTypes.push(type);
+        saveEditTypes();
+        return { type: type, created: true };
       }
 
       function removeEditType(value) {
@@ -1898,14 +1970,16 @@
           return;
         }
         var removed = editTypes.splice(index, 1)[0];
-        var fallback = getDefaultEditTypeValue();
         var changedAnnotations = false;
         state.annotations.forEach(function (annotation) {
           if (annotation.editType === value) {
-            annotation.editType = fallback;
+            annotation.editType = NO_EDIT_TYPE_VALUE;
             changedAnnotations = true;
           }
         });
+        if (state.addingEditTypeFor) {
+          state.addingEditTypeFor = "";
+        }
         if (changedAnnotations) {
           invalidateGeneratedOutput();
         }
@@ -1935,6 +2009,11 @@
         return String(value || "").replace(/[\[\]]/g, "").trim().replace(/\s+/g, " ").toUpperCase();
       }
 
+      function resolveEditTypeTag(label, tagValue) {
+        var tag = normalizeEditTypeTag(tagValue);
+        return tag || inferEditTypeTag(label);
+      }
+
       function inferEditTypeTag(label) {
         var cleanLabel = String(label || "").trim().replace(/\s+/g, " ");
         var compactLabel = cleanLabel.replace(/\s+/g, "");
@@ -1944,7 +2023,7 @@
         if (/^[a-z0-9][a-z0-9\s/_-]*$/i.test(cleanLabel)) {
           return normalizeEditTypeTag(cleanLabel);
         }
-        return cleanLabel;
+        return "CUSTOM";
       }
 
       function handleDocumentDragEnter(event) {
@@ -2855,7 +2934,8 @@
             "<button class=\"bubble-remove\" type=\"button\" title=\"삭제\" aria-label=\"삭제\"><i class=\"ti ti-x\" aria-hidden=\"true\"></i></button>",
             "</div>",
             "<div class=\"bubble-controls\">",
-            "<label class=\"bubble-type-row\"><span>유형</span><select class=\"edit-type-select\" data-edit-type-for=\"" + escapeHtml(annotation.id) + "\">" + buildEditTypeOptions(annotation) + "</select></label>",
+            "<label class=\"bubble-type-row\"><span>유형</span><select class=\"edit-type-select\" data-edit-type-for=\"" + escapeHtml(annotation.id) + "\">" + buildEditTypeOptions(annotation, true) + "</select></label>",
+            (state.addingEditTypeFor === annotation.id ? buildInlineEditTypeForm(annotation) : ""),
             "<label class=\"bubble-type-row\"><span>참고</span><select class=\"annotation-ref-select\" data-ref-for=\"" + escapeHtml(annotation.id) + "\" title=\"Ctrl+V로 레퍼런스 붙여넣기\">" + buildReferenceOptions(annotation) + "</select></label>",
             "</div>",
             "<textarea class=\"bubble-textarea\" placeholder=\"수정 내용 입력\" spellcheck=\"false\"></textarea>"
@@ -2863,8 +2943,17 @@
 
           var typeSelect = bubble.querySelector(".edit-type-select");
           typeSelect.addEventListener("change", function () {
+            if (typeSelect.value === ADD_EDIT_TYPE_VALUE) {
+              beginInlineEditTypeAdd(annotation.id);
+              return;
+            }
             updateAnnotationEditType(annotation.id, typeSelect.value);
           });
+
+          var inlineTypeForm = bubble.querySelector(".inline-edit-type-form");
+          if (inlineTypeForm) {
+            bindInlineEditTypeForm(inlineTypeForm, annotation.id);
+          }
 
           var refSelect = bubble.querySelector(".annotation-ref-select");
           refSelect.addEventListener("change", function () {
@@ -2991,7 +3080,7 @@
             "<button class=\"mini-btn\" data-action=\"edit\" type=\"button\" title=\"이미지 위에서 수정\" aria-label=\"이미지 위에서 수정\"><i class=\"ti ti-pencil\" aria-hidden=\"true\"></i></button>",
             "<button class=\"mini-btn\" data-action=\"remove\" type=\"button\" title=\"삭제\" aria-label=\"삭제\"><i class=\"ti ti-trash\" aria-hidden=\"true\"></i></button>",
             "</span>",
-            "<select class=\"annotation-type-select\" data-edit-type-for=\"" + escapeHtml(annotation.id) + "\" title=\"편집 유형\" aria-label=\"" + escapeHtml(annotation.label) + " 편집 유형\">" + buildEditTypeOptions(annotation) + "</select>",
+            "<select class=\"annotation-type-select\" data-edit-type-for=\"" + escapeHtml(annotation.id) + "\" title=\"편집 유형\" aria-label=\"" + escapeHtml(annotation.label) + " 편집 유형\">" + buildEditTypeOptions(annotation, false) + "</select>",
             "</div>",
             "<textarea class=\"annotation-text\" placeholder=\"수정 내용 입력\" spellcheck=\"false\"></textarea>"
           ].join("");
@@ -3026,20 +3115,40 @@
         });
       }
 
-      function buildEditTypeOptions(annotation) {
+      function buildEditTypeOptions(annotation, includeAddOption) {
         var current = getAnnotationEditType(annotation);
-        return getEditTypes().map(function (type) {
+        var options = [
+          "<option value=\"\"" + (current === NO_EDIT_TYPE_VALUE ? " selected" : "") + ">미지정</option>"
+        ];
+        options = options.concat(getEditTypes().map(function (type) {
           return "<option value=\"" + escapeHtml(type.value) + "\"" + (type.value === current ? " selected" : "") + ">" + escapeHtml(type.label) + "</option>";
-        }).join("");
+        }));
+        if (includeAddOption) {
+          options.push("<option value=\"" + ADD_EDIT_TYPE_VALUE + "\">+ 새 유형 추가</option>");
+        }
+        return options.join("");
+      }
+
+      function buildInlineEditTypeForm(annotation) {
+        return [
+          "<div class=\"inline-edit-type-form\" data-add-type-for=\"" + escapeHtml(annotation.id) + "\">",
+          "<input class=\"inline-edit-type-input\" data-field=\"label\" type=\"text\" placeholder=\"유형명 한글\">",
+          "<input class=\"inline-edit-type-input\" data-field=\"tag\" type=\"text\" placeholder=\"영문 태그(선택)\">",
+          "<button class=\"btn\" data-action=\"confirm-edit-type\" type=\"button\">확인</button>",
+          "</div>"
+        ].join("");
       }
 
       function getAnnotationEditType(annotation) {
-        var value = annotation && annotation.editType ? annotation.editType : getDefaultEditTypeValue();
-        return hasEditType(value) ? value : getDefaultEditTypeValue();
+        var value = annotation && annotation.editType ? annotation.editType : NO_EDIT_TYPE_VALUE;
+        return hasEditType(value) ? value : NO_EDIT_TYPE_VALUE;
       }
 
       function getEditTypeTag(annotation) {
         var value = getAnnotationEditType(annotation);
+        if (!value) {
+          return "";
+        }
         var match = getEditTypes().find(function (type) { return type.value === value; });
         return match ? match.tag : "";
       }
@@ -3055,15 +3164,90 @@
       }
 
       function updateAnnotationEditType(id, value) {
+        if (value === ADD_EDIT_TYPE_VALUE) {
+          beginInlineEditTypeAdd(id);
+          return;
+        }
         var annotation = getAnnotationById(id);
         if (!annotation) {
           return;
         }
-        annotation.editType = hasEditType(value) ? value : getDefaultEditTypeValue();
+        annotation.editType = hasEditType(value) ? value : NO_EDIT_TYPE_VALUE;
+        if (state.addingEditTypeFor === id) {
+          state.addingEditTypeFor = "";
+          renderBubbles();
+        }
         invalidateGeneratedOutput();
         syncEditTypeSelects(id, annotation.editType);
         updatePromptPreview();
         updateButtons();
+      }
+
+      function beginInlineEditTypeAdd(id) {
+        if (!getAnnotationById(id)) {
+          return;
+        }
+        state.addingEditTypeFor = id;
+        renderBubbles();
+        window.setTimeout(function () {
+          var form = bubbleLayer.querySelector("[data-add-type-for=\"" + cssEscape(id) + "\"]");
+          var input = form ? form.querySelector("[data-field=\"label\"]") : null;
+          if (input) {
+            input.focus();
+          }
+        }, 0);
+      }
+
+      function bindInlineEditTypeForm(form, id) {
+        var labelInput = form.querySelector("[data-field=\"label\"]");
+        var tagInput = form.querySelector("[data-field=\"tag\"]");
+        var confirmBtn = form.querySelector("[data-action=\"confirm-edit-type\"]");
+
+        function confirm() {
+          confirmInlineEditTypeAdd(id, labelInput.value, tagInput.value, labelInput);
+        }
+
+        confirmBtn.addEventListener("click", function (event) {
+          event.preventDefault();
+          event.stopPropagation();
+          confirm();
+        });
+        [labelInput, tagInput].forEach(function (input) {
+          input.addEventListener("keydown", function (event) {
+            if (event.key === "Enter" && !event.isComposing) {
+              event.preventDefault();
+              confirm();
+            }
+            if (event.key === "Escape") {
+              event.preventDefault();
+              state.addingEditTypeFor = "";
+              renderBubbles();
+            }
+          });
+        });
+      }
+
+      function confirmInlineEditTypeAdd(id, label, tagValue, focusTarget) {
+        var annotation = getAnnotationById(id);
+        if (!annotation) {
+          return;
+        }
+        var result = addEditType(label, tagValue);
+        if (result.error === "label") {
+          showToast("유형명을 입력하세요.");
+          if (focusTarget) {
+            focusTarget.focus();
+          }
+          return;
+        }
+        annotation.editType = result.type.value;
+        state.addingEditTypeFor = "";
+        invalidateGeneratedOutput();
+        refreshEditTypeUi();
+        syncEditTypeSelects(id, annotation.editType);
+        updatePromptPreview();
+        updateButtons();
+        showToast(result.created ? "새 유형이 추가되었습니다." : "이미 있는 유형을 선택했습니다.");
       }
 
       function buildReferenceOptions(annotation) {
