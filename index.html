@@ -442,30 +442,79 @@
       box-shadow: 0 0 0 3px rgba(59, 91, 219, 0.12);
     }
 
-    .reference-preview {
-      position: relative;
-      overflow: hidden;
+    .reference-preview,
+    .reference-list {
+      display: grid;
+      gap: 7px;
+    }
+
+    .reference-item {
+      display: grid;
+      grid-template-columns: 56px minmax(0, 1fr) auto;
+      gap: 8px;
+      align-items: center;
+      padding: 7px;
       border: 1px solid var(--border);
       border-radius: var(--radius-sm);
       background: #ffffff;
-      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.72);
+      box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
     }
 
-    .reference-preview img {
+    .reference-thumb {
       display: block;
       width: 100%;
-      max-height: 138px;
+      aspect-ratio: 1;
       object-fit: contain;
       background: var(--surface-raised);
+      border: 1px solid var(--border);
+      border-radius: 6px;
     }
 
-    .reference-preview .mini-btn {
-      position: absolute;
-      top: 7px;
-      right: 7px;
-      color: #ffffff;
-      background: rgba(15, 23, 42, 0.78);
-      border-color: rgba(255, 255, 255, 0.24);
+    .reference-info {
+      min-width: 0;
+      display: grid;
+      gap: 3px;
+    }
+
+    .reference-tag {
+      color: var(--text-strong);
+      font-size: 12px;
+      font-weight: 850;
+      letter-spacing: 0.02em;
+    }
+
+    .reference-name {
+      overflow: hidden;
+      color: var(--muted);
+      font-size: 11.5px;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    .reference-output-list {
+      display: contents;
+    }
+
+    .reference-output-list[hidden] {
+      display: none;
+    }
+
+    .annotation-ref-select {
+      width: 100%;
+      min-height: 30px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0 8px;
+      background: #ffffff;
+      color: var(--text);
+      font-size: 12px;
+      font-weight: 680;
+      outline: none;
+    }
+
+    .annotation-ref-select:focus {
+      border-color: var(--focus);
+      box-shadow: 0 0 0 3px rgba(59, 91, 219, 0.12);
     }
 
     .swatch {
@@ -976,7 +1025,7 @@
     }
 
     .output-grid.has-reference {
-      grid-template-columns: 1fr 1fr 1fr 1.35fr;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     }
 
     .output-panel.is-collapsed .output-grid {
@@ -1232,17 +1281,17 @@
             <div class="file-meta" id="fileMeta">아직 업로드된 이미지가 없습니다.</div>
           </div>
 
-          <input class="file-input" id="referenceInput" type="file" accept="image/png,image/jpeg,image/webp">
+          <input class="file-input" id="referenceInput" type="file" accept="image/png,image/jpeg,image/webp" multiple>
           <div class="drop-zone reference-zone" id="referenceDropZone">
-            <p class="drop-title">레퍼런스 이미지(선택)</p>
+            <p class="drop-title">레퍼런스 이미지(선택, 최대 5장)</p>
             <label class="btn" for="referenceInput">
               <i class="ti ti-photo-plus" aria-hidden="true"></i>
               파일 선택
             </label>
-            <div class="small-note">마킹 영역에 적용할 스타일/재질/색상 참고</div>
-            <div class="reference-preview" id="referenceUploadPreview" hidden>
-              <img id="referenceUploadThumb" alt="레퍼런스 이미지 미리보기">
-              <button class="mini-btn" id="removeReferenceBtn" type="button" title="레퍼런스 제거" aria-label="레퍼런스 제거">
+            <div class="small-note">각 마킹에 연결할 스타일/재질/색상 참고</div>
+            <div class="reference-list" id="referenceUploadPreview" hidden>
+              <img id="referenceUploadThumb" alt="레퍼런스 이미지 미리보기" hidden>
+              <button class="mini-btn" id="removeReferenceBtn" type="button" title="레퍼런스 제거" aria-label="레퍼런스 제거" hidden>
                 <i class="ti ti-x" aria-hidden="true"></i>
               </button>
             </div>
@@ -1416,27 +1465,12 @@
           </div>
         </section>
 
-        <section class="output-block" id="referenceOutputBlock" hidden>
-          <div class="output-block-head">
-            <span class="output-name">03_reference.png</span>
-          </div>
-          <div class="preview-box">
-            <img id="referencePreview" alt="03_reference.png 미리보기" hidden>
-            <span class="small-note" id="referencePlaceholder">대기 중</span>
-          </div>
-          <div class="panel-body">
-            <div class="button-row">
-              <button class="btn" id="copyReferenceBtn" type="button" disabled>
-                <i class="ti ti-copy" aria-hidden="true"></i>
-                Copy Reference Image
-              </button>
-              <button class="btn" id="downloadReferenceBtn" type="button" disabled>
-                <i class="ti ti-download" aria-hidden="true"></i>
-                Download Reference PNG
-              </button>
-            </div>
-          </div>
-        </section>
+        <div class="reference-output-list" id="referenceOutputBlock" hidden>
+          <img id="referencePreview" alt="레퍼런스 미리보기" hidden>
+          <span class="small-note" id="referencePlaceholder" hidden>대기 중</span>
+          <button class="btn" id="copyReferenceBtn" type="button" disabled hidden>Copy Reference Image</button>
+          <button class="btn" id="downloadReferenceBtn" type="button" disabled hidden>Download Reference PNG</button>
+        </div>
 
         <section class="output-block prompt-block">
           <div class="output-block-head">
@@ -1514,15 +1548,14 @@
         "전통 패턴/문양 적용"
       ];
       var HISTORY_LIMIT = 80;
+      var MAX_REFERENCES = 5;
 
       var state = {
         image: null,
         originalFile: null,
         originalUrl: "",
         originalPreviewUrl: "",
-        referenceImage: null,
-        referenceFile: null,
-        referenceUrl: "",
+        references: [],
         imageRect: { x: 0, y: 0, width: 0, height: 0 },
         activeTool: "rect",
         annotations: [],
@@ -1617,9 +1650,9 @@
         });
 
         referenceInput.addEventListener("change", function (event) {
-          var file = event.target.files && event.target.files[0];
-          if (file) {
-            loadReferenceFile(file);
+          var files = Array.prototype.slice.call(event.target.files || []);
+          if (files.length) {
+            loadReferenceFiles(files);
           }
         });
 
@@ -1627,7 +1660,11 @@
         referenceDropZone.addEventListener("dragover", handleReferenceDragOver);
         referenceDropZone.addEventListener("dragleave", handleReferenceDragLeave);
         referenceDropZone.addEventListener("drop", handleReferenceDrop);
-        removeReferenceBtn.addEventListener("click", removeReferenceImage);
+        removeReferenceBtn.addEventListener("click", function () {
+          if (state.references[0]) {
+            removeReferenceImage(state.references[0].id);
+          }
+        });
 
         document.addEventListener("dragenter", handleDocumentDragEnter);
         document.addEventListener("dragover", handleDocumentDragOver);
@@ -1678,10 +1715,16 @@
           downloadMarked();
         });
         copyReferenceBtn.addEventListener("click", function () {
-          copyImageBlob(getReferenceBlob, "레퍼런스 이미지가 복사되었습니다.", true);
+          var reference = getUsedReferences()[0];
+          if (reference) {
+            copyImageBlob(function () { return getReferenceBlob(reference); }, "레퍼런스 이미지가 복사되었습니다.", true);
+          }
         });
         downloadReferenceBtn.addEventListener("click", function () {
-          downloadReference();
+          var reference = getUsedReferences()[0];
+          if (reference) {
+            downloadReference(reference);
+          }
         });
         copyPromptBtn.addEventListener("click", function () {
           copyText(buildEditPrompt(), "프롬프트가 복사되었습니다.");
@@ -1810,12 +1853,12 @@
         state.dragDepth = 0;
         hideDropTarget();
         referenceDropZone.classList.remove("is-dragging");
-        var file = getFirstImageFile(event.dataTransfer);
-        if (!file) {
+        var files = getImageFiles(event.dataTransfer);
+        if (!files.length) {
           showToast("PNG, JPG, WEBP 이미지만 사용할 수 있습니다.");
           return;
         }
-        loadReferenceFile(file);
+        loadReferenceFiles(files);
       }
 
       function handleDocumentPaste(event) {
@@ -1853,10 +1896,12 @@
       }
 
       function getFirstImageFile(dataTransfer) {
+        return getImageFiles(dataTransfer)[0] || null;
+      }
+
+      function getImageFiles(dataTransfer) {
         var files = Array.prototype.slice.call(dataTransfer.files || []);
-        return files.find(function (file) {
-          return isSupportedImageFile(file);
-        }) || null;
+        return files.filter(isSupportedImageFile);
       }
 
       function getClipboardImageFile(clipboardData) {
@@ -1964,71 +2009,227 @@
         image.src = state.originalUrl;
       }
 
-      function loadReferenceFile(file) {
-        if (!isSupportedImageFile(file)) {
+      function loadReferenceFiles(files) {
+        var imageFiles = files.filter(isSupportedImageFile);
+        if (!imageFiles.length) {
           showToast("PNG, JPG, WEBP 이미지만 사용할 수 있습니다.");
+          referenceInput.value = "";
           return;
         }
 
-        cleanupReferenceObjectUrls();
-        state.referenceFile = file;
-        state.referenceUrl = URL.createObjectURL(file);
+        var added = 0;
+        var blocked = 0;
+        imageFiles.forEach(function (file) {
+          if (state.references.length >= MAX_REFERENCES) {
+            blocked += 1;
+            return;
+          }
+          var label = getNextReferenceLabel();
+          if (!label) {
+            blocked += 1;
+            return;
+          }
+          addReferenceFile(file, label);
+          added += 1;
+        });
         referenceInput.value = "";
+        if (blocked) {
+          showToast("레퍼런스 이미지는 최대 5장까지 업로드할 수 있습니다.");
+        } else if (added) {
+          showToast(added + "개 레퍼런스 이미지가 업로드되었습니다.");
+        }
+      }
+
+      function addReferenceFile(file, label) {
+        var reference = {
+          id: createId(),
+          label: label,
+          file: file,
+          url: URL.createObjectURL(file),
+          image: null
+        };
+        state.references.push(reference);
+        updateReferencePreview();
+        renderBubbles();
+        updatePromptPreview();
+        updateButtons();
 
         var image = new Image();
         image.onload = function () {
-          state.referenceImage = image;
-          referenceMeta.innerHTML = [
-            "<strong>" + escapeHtml(file.name || "clipboard-reference.png") + "</strong>",
-            "<span>" + formatBytes(file.size) + " · " + (image.naturalWidth || image.width) + " × " + (image.naturalHeight || image.height) + "px</span>"
-          ].join("");
+          reference.image = image;
           updateReferencePreview();
-          invalidateGeneratedOutput();
+          renderBubbles();
           updatePromptPreview();
           updateButtons();
-          showToast("레퍼런스 이미지가 업로드되었습니다.");
         };
         image.onerror = function () {
-          showToast("레퍼런스 이미지를 불러오지 못했습니다.");
-          removeReferenceImage();
+          showToast(reference.label + " 이미지를 불러오지 못했습니다.");
+          removeReferenceImage(reference.id);
         };
-        image.src = state.referenceUrl;
+        image.src = reference.url;
       }
 
-      function removeReferenceImage() {
-        cleanupReferenceObjectUrls();
-        state.referenceImage = null;
-        state.referenceFile = null;
-        state.referenceUrl = "";
+      function removeReferenceImage(id) {
+        var index = state.references.findIndex(function (reference) {
+          return reference.id === id;
+        });
+        if (index === -1) {
+          return;
+        }
+        var removed = state.references.splice(index, 1)[0];
+        if (removed.url) {
+          URL.revokeObjectURL(removed.url);
+        }
+        var cleared = false;
+        state.annotations.forEach(function (annotation) {
+          if (annotation.refId === id) {
+            annotation.refId = "";
+            cleared = true;
+          }
+        });
         referenceInput.value = "";
-        referenceMeta.textContent = "레퍼런스 이미지가 없습니다.";
         updateReferencePreview();
-        invalidateGeneratedOutput();
+        renderBubbles();
+        renderAnnotationList();
         updatePromptPreview();
+        if (cleared) {
+          invalidateGeneratedOutput();
+        }
         updateButtons();
-        showToast("레퍼런스 이미지가 제거되었습니다.");
+        showToast(removed.label + " 레퍼런스가 제거되었습니다.");
       }
 
       function updateReferencePreview() {
-        var hasReference = Boolean(state.referenceImage && state.referenceUrl);
-        referenceUploadPreview.hidden = !hasReference;
-        referenceOutputBlock.hidden = !hasReference;
-        outputContent.classList.toggle("has-reference", hasReference);
-        promptOutputName.textContent = hasReference ? "04_edit_prompt.txt" : "03_edit_prompt.txt";
-        downloadAllLabel.textContent = hasReference ? "Download All 4 Files" : "Download All 3 Files";
+        var usedReferences = getUsedReferences();
+        var fileCount = getPackageFileCount(usedReferences);
+        referenceUploadPreview.hidden = !state.references.length;
+        referenceOutputBlock.hidden = !usedReferences.length;
+        outputContent.classList.toggle("has-reference", usedReferences.length > 0);
+        promptOutputName.textContent = usedReferences.length ? "04_edit_prompt.txt" : "03_edit_prompt.txt";
+        downloadAllLabel.textContent = "Download All " + fileCount + " Files";
+        renderReferenceUploadList();
+        renderReferenceOutputCards(usedReferences);
+        updateReferenceMeta(usedReferences);
+      }
 
-        if (hasReference) {
-          referenceUploadThumb.src = state.referenceUrl;
-          referencePreview.src = state.referenceUrl;
-          referencePreview.hidden = false;
-          referencePlaceholder.hidden = true;
-        } else {
-          referenceUploadThumb.removeAttribute("src");
-          referencePreview.removeAttribute("src");
-          referencePreview.hidden = true;
-          referencePlaceholder.textContent = "대기 중";
-          referencePlaceholder.hidden = false;
+      function renderReferenceUploadList() {
+        var legacyThumb = referenceUploadThumb;
+        var legacyRemove = removeReferenceBtn;
+        referenceUploadPreview.innerHTML = "";
+        referenceUploadPreview.appendChild(legacyThumb);
+        referenceUploadPreview.appendChild(legacyRemove);
+        legacyThumb.hidden = true;
+        legacyRemove.hidden = true;
+
+        state.references.forEach(function (reference) {
+          var item = document.createElement("div");
+          item.className = "reference-item";
+          item.dataset.refId = reference.id;
+          item.innerHTML = [
+            "<img class=\"reference-thumb\" alt=\"" + escapeHtml(reference.label) + " 미리보기\" src=\"" + escapeHtml(reference.url) + "\">",
+            "<span class=\"reference-info\">",
+            "<strong class=\"reference-tag\">" + escapeHtml(reference.label) + "</strong>",
+            "<span class=\"reference-name\">" + escapeHtml(reference.file && reference.file.name ? reference.file.name : reference.label + ".png") + "</span>",
+            "</span>",
+            "<button class=\"mini-btn\" data-action=\"remove-reference\" type=\"button\" title=\"삭제\" aria-label=\"" + escapeHtml(reference.label) + " 삭제\"><i class=\"ti ti-x\" aria-hidden=\"true\"></i></button>"
+          ].join("");
+          item.querySelector("[data-action=\"remove-reference\"]").addEventListener("click", function () {
+            removeReferenceImage(reference.id);
+          });
+          referenceUploadPreview.appendChild(item);
+        });
+      }
+
+      function renderReferenceOutputCards(usedReferences) {
+        var legacyPreview = referencePreview;
+        var legacyPlaceholder = referencePlaceholder;
+        var legacyCopy = copyReferenceBtn;
+        var legacyDownload = downloadReferenceBtn;
+        referenceOutputBlock.innerHTML = "";
+        referenceOutputBlock.appendChild(legacyPreview);
+        referenceOutputBlock.appendChild(legacyPlaceholder);
+        referenceOutputBlock.appendChild(legacyCopy);
+        referenceOutputBlock.appendChild(legacyDownload);
+        legacyPreview.hidden = true;
+        legacyPlaceholder.hidden = true;
+        legacyCopy.hidden = true;
+        legacyDownload.hidden = true;
+
+        usedReferences.forEach(function (reference) {
+          var card = document.createElement("section");
+          card.className = "output-block";
+          card.dataset.refId = reference.id;
+          card.innerHTML = [
+            "<div class=\"output-block-head\"><span class=\"output-name\">" + escapeHtml(getReferenceFilename(reference)) + "</span></div>",
+            "<div class=\"preview-box\"><img alt=\"" + escapeHtml(getReferenceFilename(reference)) + " 미리보기\" src=\"" + escapeHtml(reference.url) + "\"></div>",
+            "<div class=\"panel-body\"><div class=\"button-row\">",
+            "<button class=\"btn\" data-action=\"copy-reference\" type=\"button\"" + (state.generated ? "" : " disabled") + "><i class=\"ti ti-copy\" aria-hidden=\"true\"></i>Copy Reference Image</button>",
+            "<button class=\"btn\" data-action=\"download-reference\" type=\"button\"" + (state.generated ? "" : " disabled") + "><i class=\"ti ti-download\" aria-hidden=\"true\"></i>Download Reference PNG</button>",
+            "</div></div>"
+          ].join("");
+          card.querySelector("[data-action=\"copy-reference\"]").addEventListener("click", function () {
+            copyImageBlob(function () { return getReferenceBlob(reference); }, reference.label + " 이미지가 복사되었습니다.", true);
+          });
+          card.querySelector("[data-action=\"download-reference\"]").addEventListener("click", function () {
+            downloadReference(reference);
+          });
+          referenceOutputBlock.appendChild(card);
+        });
+      }
+
+      function updateReferenceMeta(usedReferences) {
+        if (!state.references.length) {
+          referenceMeta.textContent = "레퍼런스 이미지가 없습니다.";
+          return;
         }
+        referenceMeta.innerHTML = [
+          "<strong>" + state.references.length + " / " + MAX_REFERENCES + "장 업로드됨</strong>",
+          "<span>마킹에 연결된 " + usedReferences.length + "장만 산출물에 포함됩니다.</span>"
+        ].join("");
+      }
+
+      function getNextReferenceLabel() {
+        for (var i = 1; i <= MAX_REFERENCES; i += 1) {
+          var label = "REF_" + i;
+          if (!state.references.some(function (reference) { return reference.label === label; })) {
+            return label;
+          }
+        }
+        return "";
+      }
+
+      function getReferenceById(id) {
+        return state.references.find(function (reference) {
+          return reference.id === id;
+        }) || null;
+      }
+
+      function getUsedReferences() {
+        return state.references.filter(function (reference) {
+          return reference.image && state.annotations.some(function (annotation) {
+            return annotation.refId === reference.id;
+          });
+        });
+      }
+
+      function getReferenceImageMap(usedReferences) {
+        var map = {};
+        usedReferences.forEach(function (reference, index) {
+          map[reference.id] = {
+            reference: reference,
+            imageNumber: index + 3
+          };
+        });
+        return map;
+      }
+
+      function getPackageFileCount(usedReferences) {
+        var references = usedReferences || getUsedReferences();
+        return 3 + references.length;
+      }
+
+      function getReferenceFilename(reference) {
+        return "03_" + reference.label + ".png";
       }
 
       function setOriginalPreview() {
@@ -2073,6 +2274,7 @@
             colorKey: marker.color.key,
             color: marker.color.hex,
             editType: DEFAULT_EDIT_TYPE,
+            refId: "",
             point: point,
             text: "",
             bubble: defaultBubblePosition({ type: "label", point: point })
@@ -2089,6 +2291,7 @@
           colorKey: marker.color.key,
           color: marker.color.hex,
           editType: DEFAULT_EDIT_TYPE,
+          refId: "",
           start: point,
           end: point,
           points: [point],
@@ -2162,6 +2365,7 @@
           colorKey: drawing.colorKey,
           color: drawing.color,
           editType: drawing.editType || DEFAULT_EDIT_TYPE,
+          refId: drawing.refId || "",
           text: ""
         };
 
@@ -2416,6 +2620,7 @@
             "</div>",
             "<div class=\"bubble-controls\">",
             "<label class=\"bubble-type-row\"><span>유형</span><select class=\"edit-type-select\" data-edit-type-for=\"" + escapeHtml(annotation.id) + "\">" + buildEditTypeOptions(annotation) + "</select></label>",
+            "<label class=\"bubble-type-row\"><span>참고</span><select class=\"annotation-ref-select\" data-ref-for=\"" + escapeHtml(annotation.id) + "\">" + buildReferenceOptions(annotation) + "</select></label>",
             "<div class=\"preset-quick-list\">" + buildPresetChips() + "</div>",
             "</div>",
             "<textarea class=\"bubble-textarea\" placeholder=\"수정 내용 입력\" spellcheck=\"false\"></textarea>"
@@ -2424,6 +2629,11 @@
           var typeSelect = bubble.querySelector(".edit-type-select");
           typeSelect.addEventListener("change", function () {
             updateAnnotationEditType(annotation.id, typeSelect.value);
+          });
+
+          var refSelect = bubble.querySelector(".annotation-ref-select");
+          refSelect.addEventListener("change", function () {
+            updateAnnotationReference(annotation.id, refSelect.value);
           });
 
           bubble.querySelectorAll("[data-preset-index]").forEach(function (button) {
@@ -2599,9 +2809,14 @@
         return match ? match.tag : "";
       }
 
-      function formatPromptLabel(annotation) {
+      function formatPromptLabel(annotation, referenceMap) {
         var tag = getEditTypeTag(annotation);
-        return annotation.label + (tag ? " [" + tag + "]" : "");
+        var label = annotation.label + (tag ? " [" + tag + "]" : "");
+        if (referenceMap && annotation.refId && referenceMap[annotation.refId]) {
+          var referenceInfo = referenceMap[annotation.refId];
+          label += " (use " + referenceInfo.reference.label + " / Image " + referenceInfo.imageNumber + ")";
+        }
+        return label;
       }
 
       function updateAnnotationEditType(id, value) {
@@ -2614,6 +2829,36 @@
         syncEditTypeSelects(id, annotation.editType);
         updatePromptPreview();
         updateButtons();
+      }
+
+      function buildReferenceOptions(annotation) {
+        var current = annotation && annotation.refId ? annotation.refId : "";
+        var options = ["<option value=\"\">없음</option>"];
+        state.references.forEach(function (reference) {
+          options.push("<option value=\"" + escapeHtml(reference.id) + "\"" + (reference.id === current ? " selected" : "") + ">" + escapeHtml(reference.label) + "</option>");
+        });
+        return options.join("");
+      }
+
+      function updateAnnotationReference(id, refId) {
+        var annotation = getAnnotationById(id);
+        if (!annotation) {
+          return;
+        }
+        annotation.refId = getReferenceById(refId) ? refId : "";
+        invalidateGeneratedOutput();
+        syncReferenceSelects(id, annotation.refId);
+        updateReferencePreview();
+        updatePromptPreview();
+        updateButtons();
+      }
+
+      function syncReferenceSelects(id, value) {
+        document.querySelectorAll("[data-ref-for=\"" + cssEscape(id) + "\"]").forEach(function (select) {
+          if (select.value !== value) {
+            select.value = value;
+          }
+        });
       }
 
       function syncEditTypeSelects(id, value) {
@@ -3253,15 +3498,17 @@
       }
 
       function buildEditPrompt() {
+        var usedReferences = getUsedReferences();
+        var referenceMap = getReferenceImageMap(usedReferences);
         var entries = state.annotations.map(function (annotation) {
-          return formatPromptLabel(annotation) + ":\n" + (cleanInstruction(annotation.text) || "[No instruction entered]");
+          return formatPromptLabel(annotation, referenceMap) + ":\n" + (cleanInstruction(annotation.text) || "[No instruction entered]");
         }).join("\n\n");
 
         if (!entries) {
           entries = "[No marked areas yet.]";
         }
 
-        if (!state.referenceImage) {
+        if (!usedReferences.length) {
           return [
             "Use Image 1 as the original base image.",
             "",
@@ -3279,15 +3526,20 @@
           ].join("\n");
         }
 
+        var referenceLines = usedReferences.map(function (reference, index) {
+          return "Image " + (index + 3) + " = " + reference.label;
+        });
+
         return [
           "Use Image 1 as the original base image.",
           "Use Image 2 as a location reference ONLY. Image 2 contains colored shapes, arrows, freehand marks, and number labels (e.g. RED_01) that indicate WHERE to edit. These marks, and ANY text or labels visible in Image 2, must NOT appear in the final image. Do not render, redraw, or reproduce them.",
-          "Use Image 3 as a STYLE/CONTENT reference — apply its look (material, style, color, form, mood) to the marked areas.",
+          "Reference images (apply the overall look — material, style, color, form, mood — of the WHOLE reference image to the matched marked area):",
+          referenceLines.join("\n"),
           "",
           "The instructions below may be written in Korean. Translate each instruction into English and apply it.",
           "IMPORTANT: Any text, signage, labels, or lettering that appears in the FINAL edited image must be rendered in ENGLISH, not Korean. For example, if an instruction says to change a sign to \"스포츠 게임\", render it as \"SPORTS GAME\" in the image.",
           "",
-          "Apply edits only to the marked areas, referencing Image 3, matching each colored mark to its instruction:",
+          "Apply edits only to the marked areas. For each colored mark, apply its instruction; if a reference is noted, make that area match the referenced image:",
           "",
           entries,
           "",
@@ -3297,15 +3549,17 @@
       }
 
       function buildGptMessage() {
+        var usedReferences = getUsedReferences();
+        var referenceMap = getReferenceImageMap(usedReferences);
         var entries = state.annotations.map(function (annotation) {
-          return formatPromptLabel(annotation) + ":\n" + (cleanInstruction(annotation.text) || "[수정 내용 미입력]");
+          return formatPromptLabel(annotation, referenceMap) + ":\n" + (cleanInstruction(annotation.text) || "[수정 내용 미입력]");
         }).join("\n\n");
 
         if (!entries) {
           entries = "[표시된 수정 영역 없음]";
         }
 
-        if (!state.referenceImage) {
+        if (!usedReferences.length) {
           return [
             "첨부 이미지 1 = 01_original.png",
             "첨부 이미지 2 = 02_marked_reference.png",
@@ -3321,14 +3575,19 @@
           ].join("\n");
         }
 
-        return [
+        var attachmentLines = [
           "첨부 이미지 1 = 01_original.png",
-          "첨부 이미지 2 = 02_marked_reference.png",
-          "첨부 이미지 3 = 03_reference.png",
+          "첨부 이미지 2 = 02_marked_reference.png"
+        ].concat(usedReferences.map(function (reference, index) {
+          return "첨부 이미지 " + (index + 3) + " = " + getReferenceFilename(reference) + " (" + reference.label + ")";
+        }));
+
+        return [
+          attachmentLines.join("\n"),
           "",
           "이미지 1을 원본 이미지로 사용하고,",
           "이미지 2는 수정 위치 표시용 참고 이미지로만 사용하세요.",
-          "이미지 3은 전체 공통 레퍼런스입니다. 표시된 마킹 영역을 이미지 3의 재질·스타일·색상·형태·무드처럼 수정하세요.",
+          "이미지 3부터는 마킹별 레퍼런스입니다. 각 마킹에 적힌 REF/Image 매핑에 맞춰 해당 영역을 그 레퍼런스의 재질·스타일·색상·형태·무드처럼 수정하세요.",
           "",
           "지시문이 한글이면 영문으로 번역해서 적용하고, 최종 이미지에 들어가는 간판·문구·라벨은 모두 영문으로 렌더하세요(예: '스포츠 게임' → 'SPORTS GAME'). 표시용 컬러 마크·번호라벨·텍스트는 이미지에 넣지 마세요.",
           "",
@@ -3432,15 +3691,19 @@
         });
       }
 
-      function getReferenceBlob() {
+      function getReferenceBlob(reference) {
         return new Promise(function (resolve) {
+          if (!reference || !reference.image) {
+            resolve(null);
+            return;
+          }
           var output = document.createElement("canvas");
-          var width = state.referenceImage.naturalWidth || state.referenceImage.width;
-          var height = state.referenceImage.naturalHeight || state.referenceImage.height;
+          var width = reference.image.naturalWidth || reference.image.width;
+          var height = reference.image.naturalHeight || reference.image.height;
           output.width = width;
           output.height = height;
           var outputCtx = output.getContext("2d");
-          outputCtx.drawImage(state.referenceImage, 0, 0, width, height);
+          outputCtx.drawImage(reference.image, 0, 0, width, height);
           output.toBlob(resolve, "image/png");
         });
       }
@@ -3463,12 +3726,14 @@
         });
       }
 
-      function downloadReference() {
-        if (!state.referenceImage) {
+      function downloadReference(reference) {
+        if (!reference || !reference.image) {
           return;
         }
-        getReferenceBlob().then(function (blob) {
-          downloadBlob(blob, "03_reference.png");
+        getReferenceBlob(reference).then(function (blob) {
+          if (blob) {
+            downloadBlob(blob, getReferenceFilename(reference));
+          }
         });
       }
 
@@ -3480,16 +3745,16 @@
         if (!state.image) {
           return;
         }
+        var usedReferences = getUsedReferences();
         downloadOriginal();
         window.setTimeout(downloadMarked, 260);
-        if (state.referenceImage) {
-          window.setTimeout(downloadReference, 520);
-          window.setTimeout(downloadPrompt, 780);
-          showToast("4개 파일 다운로드를 시작했습니다.");
-        } else {
-          window.setTimeout(downloadPrompt, 520);
-          showToast("3개 파일 다운로드를 시작했습니다.");
-        }
+        usedReferences.forEach(function (reference, index) {
+          window.setTimeout(function () {
+            downloadReference(reference);
+          }, 520 + index * 260);
+        });
+        window.setTimeout(downloadPrompt, 520 + usedReferences.length * 260);
+        showToast(getPackageFileCount(usedReferences) + "개 파일 다운로드를 시작했습니다.");
       }
 
       function copyImageBlob(blobFactory, successMessage, allowReferenceOnly) {
@@ -3497,8 +3762,8 @@
           showToast("먼저 이미지를 업로드하세요.");
           return;
         }
-        if (allowReferenceOnly && !state.referenceImage) {
-          showToast("먼저 레퍼런스 이미지를 업로드하세요.");
+        if (allowReferenceOnly && !getUsedReferences().length) {
+          showToast("먼저 마킹에 레퍼런스를 연결하세요.");
           return;
         }
         if (!navigator.clipboard || !window.ClipboardItem) {
@@ -3529,7 +3794,7 @@
       }
 
       function getPromptFilename() {
-        return state.referenceImage ? "04_edit_prompt.txt" : "03_edit_prompt.txt";
+        return getUsedReferences().length ? "04_edit_prompt.txt" : "03_edit_prompt.txt";
       }
 
       function fallbackCopyText(text, successMessage) {
@@ -3568,9 +3833,7 @@
         state.originalFile = null;
         state.originalUrl = "";
         state.originalPreviewUrl = "";
-        state.referenceImage = null;
-        state.referenceFile = null;
-        state.referenceUrl = "";
+        state.references = [];
         state.markedPreviewUrl = "";
         state.imageRect = { x: 0, y: 0, width: 0, height: 0 };
         state.annotations = [];
@@ -3623,14 +3886,16 @@
       }
 
       function cleanupReferenceObjectUrls() {
-        if (state.referenceUrl) {
-          URL.revokeObjectURL(state.referenceUrl);
-        }
+        state.references.forEach(function (reference) {
+          if (reference.url) {
+            URL.revokeObjectURL(reference.url);
+          }
+        });
       }
 
       function updateButtons() {
         var hasImage = Boolean(state.image);
-        var hasReference = Boolean(state.referenceImage);
+        var usedReferences = getUsedReferences();
         var hasAnnotations = state.annotations.length > 0;
         var hasPackage = hasImage && state.generated;
         updateReferencePreview();
@@ -3642,8 +3907,8 @@
         downloadOriginalBtn.disabled = !hasImage;
         copyMarkedBtn.disabled = !hasPackage;
         downloadMarkedBtn.disabled = !hasPackage;
-        copyReferenceBtn.disabled = !hasReference;
-        downloadReferenceBtn.disabled = !hasReference;
+        copyReferenceBtn.disabled = !hasPackage || !usedReferences.length;
+        downloadReferenceBtn.disabled = !hasPackage || !usedReferences.length;
         copyPromptBtn.disabled = !hasPackage;
         downloadPromptBtn.disabled = !hasPackage;
         downloadAllBtn.disabled = !hasPackage;
