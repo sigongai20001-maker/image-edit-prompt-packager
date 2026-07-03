@@ -502,24 +502,6 @@
       display: none;
     }
 
-    .annotation-ref-select {
-      width: 100%;
-      min-height: 30px;
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      padding: 0 8px;
-      background: #ffffff;
-      color: var(--text);
-      font-size: 12px;
-      font-weight: 680;
-      outline: none;
-    }
-
-    .annotation-ref-select:focus {
-      border-color: var(--focus);
-      box-shadow: 0 0 0 3px rgba(59, 91, 219, 0.12);
-    }
-
     .swatch {
       width: 12px;
       height: 12px;
@@ -731,6 +713,81 @@
     .annotation-type-select:focus {
       border-color: var(--focus);
       box-shadow: 0 0 0 3px rgba(59, 91, 219, 0.12);
+    }
+
+    .mark-reference-row {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      gap: 7px;
+      align-items: start;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 720;
+    }
+
+    .mark-reference-attach {
+      min-width: 0;
+      border: 1px dashed var(--border-strong);
+      border-radius: var(--radius-sm);
+      padding: 7px;
+      background: rgba(248, 250, 252, 0.84);
+      outline: none;
+    }
+
+    .mark-reference-attach:focus,
+    .mark-reference-attach:focus-within {
+      border-color: var(--focus);
+      box-shadow: 0 0 0 3px rgba(59, 91, 219, 0.12);
+    }
+
+    .mark-reference-empty,
+    .mark-reference-preview {
+      display: grid;
+      gap: 7px;
+    }
+
+    .mark-reference-note {
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.35;
+    }
+
+    .mark-reference-thumb-row {
+      display: grid;
+      grid-template-columns: 48px minmax(0, 1fr) auto;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .mark-reference-thumb {
+      width: 48px;
+      height: 38px;
+      object-fit: cover;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: #ffffff;
+    }
+
+    .mark-reference-name {
+      overflow: hidden;
+      color: var(--text);
+      font-size: 12px;
+      font-weight: 780;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    .mark-reference-actions {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .mark-reference-actions .btn {
+      min-height: 28px;
+      padding: 0 9px;
+      font-size: 12px;
     }
 
     .inline-edit-type-form {
@@ -1292,21 +1349,15 @@
             <div class="file-meta" id="fileMeta">아직 업로드된 이미지가 없습니다.</div>
           </div>
 
-          <input class="file-input" id="referenceInput" type="file" accept="image/png,image/jpeg,image/webp" multiple>
-          <div class="drop-zone reference-zone" id="referenceDropZone" tabindex="0">
-            <p class="drop-title">레퍼런스 이미지(선택, 최대 5장)</p>
-            <label class="btn" for="referenceInput">
-              <i class="ti ti-photo-plus" aria-hidden="true"></i>
-              파일 선택
-            </label>
-            <div class="small-note">각 마킹에 연결할 스타일/재질/색상 참고 · 클릭 후 Ctrl+V 가능</div>
+          <input class="file-input" id="referenceInput" type="file" accept="image/png,image/jpeg,image/webp" multiple hidden aria-hidden="true">
+          <div class="drop-zone reference-zone" id="referenceDropZone" tabindex="0" hidden aria-hidden="true">
             <div class="reference-list" id="referenceUploadPreview" hidden>
               <img id="referenceUploadThumb" alt="레퍼런스 이미지 미리보기" hidden>
               <button class="mini-btn" id="removeReferenceBtn" type="button" title="레퍼런스 제거" aria-label="레퍼런스 제거" hidden>
                 <i class="ti ti-x" aria-hidden="true"></i>
               </button>
             </div>
-            <div class="file-meta" id="referenceMeta">레퍼런스 이미지가 없습니다.</div>
+            <div class="file-meta" id="referenceMeta" hidden></div>
           </div>
 
           <div class="tool-group">
@@ -1537,7 +1588,6 @@
 
       var NO_EDIT_TYPE_VALUE = "";
       var ADD_EDIT_TYPE_VALUE = "__add_edit_type__";
-      var ADD_REFERENCE_PASTE_VALUE = "__paste_reference_image__";
       var DEFAULT_EDIT_TYPE = "text";
       var DEFAULT_EDIT_TYPES = [
         { value: "text", label: "문구수정", tag: "TEXT EDIT" },
@@ -1585,7 +1635,6 @@
 
       var EDIT_TYPE_STORAGE_KEY = "imageEditPromptPackager.editTypes.v1";
       var HISTORY_LIMIT = 80;
-      var MAX_REFERENCES = 5;
 
       var state = {
         image: null,
@@ -2174,11 +2223,11 @@
 
       function getAnnotationReferencePasteTarget(event) {
         var target = event.target;
-        var select = target && target.closest ? target.closest(".annotation-ref-select") : null;
-        if (!select && document.activeElement && document.activeElement.closest) {
-          select = document.activeElement.closest(".annotation-ref-select");
+        var attach = target && target.closest ? target.closest(".mark-reference-attach") : null;
+        if (!attach && document.activeElement && document.activeElement.closest) {
+          attach = document.activeElement.closest(".mark-reference-attach");
         }
-        return select && select.dataset ? select.dataset.refFor || "" : "";
+        return attach && attach.dataset ? attach.dataset.refFor || "" : "";
       }
 
       function handleAnnotationReferencePaste(event, annotationId) {
@@ -2197,13 +2246,7 @@
         event.stopPropagation();
         state.dragDepth = 0;
         hideDropTarget();
-        var addedReferences = loadReferenceFiles([file]);
-        if (!addedReferences.length) {
-          return;
-        }
-        var reference = addedReferences[addedReferences.length - 1];
-        updateAnnotationReference(annotationId, reference.id);
-        showToast(reference.label + " 레퍼런스가 이 마킹에 연결되었습니다.");
+        attachReferenceToAnnotation(annotationId, file, "paste");
       }
 
       function showDropTarget() {
@@ -2279,6 +2322,7 @@
         }
 
         cleanupObjectUrls(false);
+        cleanupAnnotationReferenceObjectUrls();
         state.originalFile = file;
         state.originalUrl = URL.createObjectURL(file);
         state.originalPreviewUrl = "";
@@ -2341,47 +2385,33 @@
       }
 
       function loadReferenceFiles(files) {
-        var imageFiles = files.filter(isSupportedImageFile);
-        if (!imageFiles.length) {
-          showToast("PNG, JPG, WEBP 이미지만 사용할 수 있습니다.");
-          referenceInput.value = "";
-          return [];
-        }
-
-        var added = 0;
-        var blocked = 0;
-        var addedReferences = [];
-        imageFiles.forEach(function (file) {
-          if (state.references.length >= MAX_REFERENCES) {
-            blocked += 1;
-            return;
-          }
-          var label = getNextReferenceLabel();
-          if (!label) {
-            blocked += 1;
-            return;
-          }
-          addedReferences.push(addReferenceFile(file, label));
-          added += 1;
-        });
         referenceInput.value = "";
-        if (blocked) {
-          showToast("레퍼런스 이미지는 최대 5장까지 업로드할 수 있습니다.");
-        } else if (added) {
-          showToast(added + "개 레퍼런스 이미지가 업로드되었습니다.");
-        }
-        return addedReferences;
+        showToast("레퍼런스는 각 마킹 수정창에서 첨부하세요.");
+        return [];
       }
 
-      function addReferenceFile(file, label) {
+      function attachReferenceToAnnotation(annotationId, file, source) {
+        var annotation = getAnnotationById(annotationId);
+        if (!annotation) {
+          return null;
+        }
+        if (!isSupportedImageFile(file)) {
+          showToast("PNG, JPG, WEBP 이미지만 사용할 수 있습니다.");
+          return null;
+        }
+
+        recordHistorySnapshot();
         var reference = {
           id: createId(),
-          label: label,
+          label: annotation.label,
+          annotationId: annotation.id,
           file: file,
           url: URL.createObjectURL(file),
           image: null
         };
-        state.references.push(reference);
+        annotation.refImage = reference;
+        annotation.refId = reference.id;
+        invalidateGeneratedOutput();
         updateReferencePreview();
         renderBubbles();
         updatePromptPreview();
@@ -2394,49 +2424,46 @@
           renderBubbles();
           updatePromptPreview();
           updateButtons();
+          showToast(annotation.label + " 레퍼런스가 첨부되었습니다.");
         };
         image.onerror = function () {
-          showToast(reference.label + " 이미지를 불러오지 못했습니다.");
-          removeReferenceImage(reference.id);
+          showToast(annotation.label + " 레퍼런스를 불러오지 못했습니다.");
+          removeAnnotationReference(annotation.id);
         };
         image.src = reference.url;
         return reference;
       }
 
-      function removeReferenceImage(id) {
-        var index = state.references.findIndex(function (reference) {
-          return reference.id === id;
-        });
-        if (index === -1) {
+      function removeAnnotationReference(annotationId) {
+        var annotation = getAnnotationById(annotationId);
+        if (!annotation || !annotation.refImage) {
           return;
         }
-        var removed = state.references.splice(index, 1)[0];
-        if (removed.url) {
-          URL.revokeObjectURL(removed.url);
-        }
-        var cleared = false;
-        state.annotations.forEach(function (annotation) {
-          if (annotation.refId === id) {
-            annotation.refId = "";
-            cleared = true;
-          }
-        });
-        referenceInput.value = "";
+        recordHistorySnapshot();
+        annotation.refImage = null;
+        annotation.refId = "";
+        invalidateGeneratedOutput();
         updateReferencePreview();
         renderBubbles();
         renderAnnotationList();
         updatePromptPreview();
-        if (cleared) {
-          invalidateGeneratedOutput();
-        }
         updateButtons();
-        showToast(removed.label + " 레퍼런스가 제거되었습니다.");
+        showToast(annotation.label + " 레퍼런스가 제거되었습니다.");
+      }
+
+      function removeReferenceImage(id) {
+        var annotation = state.annotations.find(function (item) {
+          return item.refImage && item.refImage.id === id;
+        });
+        if (annotation) {
+          removeAnnotationReference(annotation.id);
+        }
       }
 
       function updateReferencePreview() {
         var usedReferences = getUsedReferences();
         var fileCount = getPackageFileCount(usedReferences);
-        referenceUploadPreview.hidden = !state.references.length;
+        referenceUploadPreview.hidden = true;
         referenceOutputBlock.hidden = !usedReferences.length;
         outputContent.classList.toggle("has-reference", usedReferences.length > 0);
         promptOutputName.textContent = usedReferences.length ? "04_edit_prompt.txt" : "03_edit_prompt.txt";
@@ -2454,24 +2481,6 @@
         referenceUploadPreview.appendChild(legacyRemove);
         legacyThumb.hidden = true;
         legacyRemove.hidden = true;
-
-        state.references.forEach(function (reference) {
-          var item = document.createElement("div");
-          item.className = "reference-item";
-          item.dataset.refId = reference.id;
-          item.innerHTML = [
-            "<img class=\"reference-thumb\" alt=\"" + escapeHtml(reference.label) + " 미리보기\" src=\"" + escapeHtml(reference.url) + "\">",
-            "<span class=\"reference-info\">",
-            "<strong class=\"reference-tag\">" + escapeHtml(reference.label) + "</strong>",
-            "<span class=\"reference-name\">" + escapeHtml(reference.file && reference.file.name ? reference.file.name : reference.label + ".png") + "</span>",
-            "</span>",
-            "<button class=\"mini-btn\" data-action=\"remove-reference\" type=\"button\" title=\"삭제\" aria-label=\"" + escapeHtml(reference.label) + " 삭제\"><i class=\"ti ti-x\" aria-hidden=\"true\"></i></button>"
-          ].join("");
-          item.querySelector("[data-action=\"remove-reference\"]").addEventListener("click", function () {
-            removeReferenceImage(reference.id);
-          });
-          referenceUploadPreview.appendChild(item);
-        });
       }
 
       function renderReferenceOutputCards(usedReferences) {
@@ -2512,47 +2521,41 @@
       }
 
       function updateReferenceMeta(usedReferences) {
-        if (!state.references.length) {
-          referenceMeta.textContent = "레퍼런스 이미지가 없습니다.";
-          return;
-        }
-        referenceMeta.innerHTML = [
-          "<strong>" + state.references.length + " / " + MAX_REFERENCES + "장 업로드됨</strong>",
-          "<span>마킹에 연결된 " + usedReferences.length + "장만 산출물에 포함됩니다.</span>"
-        ].join("");
-      }
-
-      function getNextReferenceLabel() {
-        for (var i = 1; i <= MAX_REFERENCES; i += 1) {
-          var label = "REF_" + i;
-          if (!state.references.some(function (reference) { return reference.label === label; })) {
-            return label;
-          }
-        }
-        return "";
-      }
-
-      function getReferenceById(id) {
-        return state.references.find(function (reference) {
-          return reference.id === id;
-        }) || null;
+        referenceMeta.textContent = usedReferences.length ? "마킹별 레퍼런스 " + usedReferences.length + "장 연결됨" : "레퍼런스 이미지가 없습니다.";
       }
 
       function getUsedReferences() {
-        return state.references.filter(function (reference) {
-          return reference.image && state.annotations.some(function (annotation) {
-            return annotation.refId === reference.id;
-          });
+        return state.annotations.reduce(function (references, annotation) {
+          if (annotation.refImage && annotation.refImage.image) {
+            references.push({
+              id: annotation.refImage.id,
+              label: annotation.label,
+              annotationId: annotation.id,
+              annotationLabel: annotation.label,
+              file: annotation.refImage.file,
+              url: annotation.refImage.url,
+              image: annotation.refImage.image
+            });
+          }
+          return references;
+        }, []);
+      }
+
+      function hasPendingReferenceImages() {
+        return state.annotations.some(function (annotation) {
+          return annotation.refImage && !annotation.refImage.image;
         });
       }
 
       function getReferenceImageMap(usedReferences) {
         var map = {};
         usedReferences.forEach(function (reference, index) {
-          map[reference.id] = {
+          var info = {
             reference: reference,
             imageNumber: index + 3
           };
+          map[reference.id] = info;
+          map[reference.annotationId] = info;
         });
         return map;
       }
@@ -2563,7 +2566,7 @@
       }
 
       function getReferenceFilename(reference) {
-        return "03_" + reference.label + ".png";
+        return "03_ref_" + sanitizeFilename(reference.annotationLabel || reference.label || "reference") + ".png";
       }
 
       function setOriginalPreview() {
@@ -2609,6 +2612,7 @@
             color: marker.color.hex,
             editType: getDefaultEditTypeValue(),
             refId: "",
+            refImage: null,
             point: point,
             text: "",
             bubble: defaultBubblePosition({ type: "label", point: point })
@@ -2626,6 +2630,7 @@
           color: marker.color.hex,
           editType: getDefaultEditTypeValue(),
           refId: "",
+          refImage: null,
           start: point,
           end: point,
           points: [point],
@@ -2700,6 +2705,7 @@
           color: drawing.color,
           editType: hasEditType(drawing.editType) ? drawing.editType : getDefaultEditTypeValue(),
           refId: drawing.refId || "",
+          refImage: drawing.refImage || null,
           text: ""
         };
 
@@ -2955,7 +2961,7 @@
             "<div class=\"bubble-controls\">",
             "<label class=\"bubble-type-row\"><span>유형</span><select class=\"edit-type-select\" data-edit-type-for=\"" + escapeHtml(annotation.id) + "\">" + buildEditTypeOptions(annotation, true) + "</select></label>",
             (state.addingEditTypeFor === annotation.id ? buildInlineEditTypeForm(annotation) : ""),
-            "<label class=\"bubble-type-row\"><span>참고</span><select class=\"annotation-ref-select\" data-ref-for=\"" + escapeHtml(annotation.id) + "\" title=\"Ctrl+V로 레퍼런스 붙여넣기\">" + buildReferenceOptions(annotation) + "</select></label>",
+            buildMarkReferenceAttach(annotation),
             "</div>",
             "<textarea class=\"bubble-textarea\" placeholder=\"수정 내용 입력\" spellcheck=\"false\"></textarea>"
           ].join("");
@@ -2974,17 +2980,7 @@
             bindInlineEditTypeForm(inlineTypeForm, annotation.id);
           }
 
-          var refSelect = bubble.querySelector(".annotation-ref-select");
-          refSelect.addEventListener("change", function () {
-            if (refSelect.value === ADD_REFERENCE_PASTE_VALUE) {
-              beginReferencePaste(annotation.id, refSelect);
-              return;
-            }
-            updateAnnotationReference(annotation.id, refSelect.value);
-          });
-          refSelect.addEventListener("paste", function (event) {
-            handleAnnotationReferencePaste(event, annotation.id);
-          });
+          bindMarkReferenceAttach(bubble, annotation.id);
 
           var textarea = bubble.querySelector("textarea");
           textarea.value = annotation.text || "";
@@ -3176,11 +3172,22 @@
       function formatPromptLabel(annotation, referenceMap) {
         var tag = getEditTypeTag(annotation);
         var label = annotation.label + (tag ? " [" + tag + "]" : "");
-        if (referenceMap && annotation.refId && referenceMap[annotation.refId]) {
-          var referenceInfo = referenceMap[annotation.refId];
-          label += " (use " + referenceInfo.reference.label + " / Image " + referenceInfo.imageNumber + ")";
+        if (referenceMap && referenceMap[annotation.id]) {
+          var referenceInfo = referenceMap[annotation.id];
+          label += " (use its reference image / Image " + referenceInfo.imageNumber + ")";
         }
         return label;
+      }
+
+      function formatEditInstruction(annotation, fallbackText) {
+        var instruction = cleanInstruction(annotation.text);
+        if (instruction) {
+          return instruction;
+        }
+        if (annotation.refImage) {
+          return fallbackText;
+        }
+        return "";
       }
 
       function updateAnnotationEditType(id, value) {
@@ -3270,51 +3277,72 @@
         showToast(result.created ? "새 유형이 추가되었습니다." : "이미 있는 유형을 선택했습니다.");
       }
 
-      function buildReferenceOptions(annotation) {
-        var current = annotation && annotation.refId ? annotation.refId : "";
-        var options = ["<option value=\"\">없음</option>"];
-        state.references.forEach(function (reference) {
-          options.push("<option value=\"" + escapeHtml(reference.id) + "\"" + (reference.id === current ? " selected" : "") + ">" + escapeHtml(reference.label) + "</option>");
-        });
-        options.push("<option value=\"" + ADD_REFERENCE_PASTE_VALUE + "\">+ 이미지 붙여넣기(Ctrl+V)</option>");
-        return options.join("");
+      function buildMarkReferenceAttach(annotation) {
+        var hasReference = annotation.refImage && annotation.refImage.url;
+        var name = hasReference && annotation.refImage.file && annotation.refImage.file.name ? annotation.refImage.file.name : "첨부된 레퍼런스";
+        return [
+          "<div class=\"mark-reference-row\">",
+          "<span>참고</span>",
+          "<div class=\"mark-reference-attach\" data-ref-for=\"" + escapeHtml(annotation.id) + "\" tabindex=\"0\" title=\"파일 선택 또는 Ctrl+V로 레퍼런스 첨부\">",
+          "<input class=\"mark-reference-input\" data-ref-file-for=\"" + escapeHtml(annotation.id) + "\" type=\"file\" accept=\"image/png,image/jpeg,image/webp\" hidden>",
+          hasReference ? [
+            "<div class=\"mark-reference-preview\">",
+            "<div class=\"mark-reference-thumb-row\">",
+            "<img class=\"mark-reference-thumb\" alt=\"" + escapeHtml(annotation.label) + " 레퍼런스 미리보기\" src=\"" + escapeHtml(annotation.refImage.url) + "\">",
+            "<span class=\"mark-reference-name\">" + escapeHtml(name) + "</span>",
+            "<button class=\"mini-btn\" data-action=\"remove-mark-reference\" type=\"button\" title=\"레퍼런스 제거\" aria-label=\"레퍼런스 제거\"><i class=\"ti ti-x\" aria-hidden=\"true\"></i></button>",
+            "</div>",
+            "<div class=\"mark-reference-actions\">",
+            "<button class=\"btn\" data-action=\"choose-mark-reference\" type=\"button\"><i class=\"ti ti-photo-plus\" aria-hidden=\"true\"></i>교체</button>",
+            "<span class=\"mark-reference-note\">Ctrl+V로도 교체 가능</span>",
+            "</div>",
+            "</div>"
+          ].join("") : [
+            "<div class=\"mark-reference-empty\">",
+            "<div class=\"mark-reference-actions\">",
+            "<button class=\"btn\" data-action=\"choose-mark-reference\" type=\"button\"><i class=\"ti ti-photo-plus\" aria-hidden=\"true\"></i>파일 선택</button>",
+            "</div>",
+            "<span class=\"mark-reference-note\">이 영역을 참고 이미지처럼 바꾸려면 파일을 선택하거나 Ctrl+V로 붙여넣으세요.</span>",
+            "</div>"
+          ].join(""),
+          "</div>",
+          "</div>"
+        ].join("");
       }
 
-      function updateAnnotationReference(id, refId) {
-        if (refId === ADD_REFERENCE_PASTE_VALUE) {
-          beginReferencePaste(id, null);
+      function bindMarkReferenceAttach(root, annotationId) {
+        var attach = root.querySelector(".mark-reference-attach[data-ref-for=\"" + cssEscape(annotationId) + "\"]");
+        if (!attach) {
           return;
         }
-        var annotation = getAnnotationById(id);
-        if (!annotation) {
-          return;
+        var input = attach.querySelector(".mark-reference-input");
+        var chooseBtn = attach.querySelector("[data-action=\"choose-mark-reference\"]");
+        var removeBtn = attach.querySelector("[data-action=\"remove-mark-reference\"]");
+        if (chooseBtn && input) {
+          chooseBtn.addEventListener("click", function (event) {
+            event.preventDefault();
+            event.stopPropagation();
+            input.click();
+          });
         }
-        annotation.refId = getReferenceById(refId) ? refId : "";
-        invalidateGeneratedOutput();
-        syncReferenceSelects(id, annotation.refId);
-        updateReferencePreview();
-        updatePromptPreview();
-        updateButtons();
-      }
-
-      function beginReferencePaste(id, select) {
-        var annotation = getAnnotationById(id);
-        if (!annotation) {
-          return;
+        if (removeBtn) {
+          removeBtn.addEventListener("click", function (event) {
+            event.preventDefault();
+            event.stopPropagation();
+            removeAnnotationReference(annotationId);
+          });
         }
-        var refSelect = select || bubbleLayer.querySelector("[data-ref-for=\"" + cssEscape(id) + "\"]");
-        if (refSelect) {
-          refSelect.value = annotation.refId || "";
-          refSelect.focus({ preventScroll: true });
+        if (input) {
+          input.addEventListener("change", function () {
+            var file = input.files && input.files[0] ? input.files[0] : null;
+            input.value = "";
+            if (file) {
+              attachReferenceToAnnotation(annotationId, file, "file");
+            }
+          });
         }
-        showToast("참고 드롭다운에 포커스를 둔 상태에서 Ctrl+V로 이미지를 붙여넣으세요.");
-      }
-
-      function syncReferenceSelects(id, value) {
-        document.querySelectorAll("[data-ref-for=\"" + cssEscape(id) + "\"]").forEach(function (select) {
-          if (select.value !== value) {
-            select.value = value;
-          }
+        attach.addEventListener("paste", function (event) {
+          handleAnnotationReferencePaste(event, annotationId);
         });
       }
 
@@ -3485,7 +3513,39 @@
       }
 
       function cloneAnnotations(annotations) {
-        return JSON.parse(JSON.stringify(annotations || []));
+        return (annotations || []).map(function (annotation) {
+          var copy = {
+            id: annotation.id,
+            type: annotation.type,
+            label: annotation.label,
+            number: annotation.number,
+            colorKey: annotation.colorKey,
+            color: annotation.color,
+            editType: annotation.editType,
+            refId: annotation.refId || "",
+            refImage: annotation.refImage || null,
+            text: annotation.text || "",
+            bubble: annotation.bubble ? {
+              x: annotation.bubble.x,
+              y: annotation.bubble.y
+            } : null
+          };
+          if (annotation.point) {
+            copy.point = { x: annotation.point.x, y: annotation.point.y };
+          }
+          if (annotation.start) {
+            copy.start = { x: annotation.start.x, y: annotation.start.y };
+          }
+          if (annotation.end) {
+            copy.end = { x: annotation.end.x, y: annotation.end.y };
+          }
+          if (annotation.points) {
+            copy.points = annotation.points.map(function (point) {
+              return { x: point.x, y: point.y };
+            });
+          }
+          return copy;
+        });
       }
 
       function getNextNumberFromAnnotations() {
@@ -3799,6 +3859,10 @@
           showToast("먼저 이미지를 업로드하세요.");
           return;
         }
+        if (hasPendingReferenceImages()) {
+          showToast("레퍼런스 이미지를 불러오는 중입니다. 잠시 후 다시 생성하세요.");
+          return;
+        }
         state.promptText = buildEditPrompt();
         promptOutput.value = state.promptText;
         state.generated = true;
@@ -3866,7 +3930,8 @@
         var usedReferences = getUsedReferences();
         var referenceMap = getReferenceImageMap(usedReferences);
         var entries = state.annotations.map(function (annotation) {
-          return formatPromptLabel(annotation, referenceMap) + ":\n" + (cleanInstruction(annotation.text) || "[No instruction entered]");
+          var instruction = formatEditInstruction(annotation, "Change this area to match its attached reference image.");
+          return formatPromptLabel(annotation, referenceMap) + ":\n" + (instruction || "[No instruction entered]");
         }).join("\n\n");
 
         if (!entries) {
@@ -3892,19 +3957,19 @@
         }
 
         var referenceLines = usedReferences.map(function (reference, index) {
-          return "Image " + (index + 3) + " = " + reference.label;
+          return "Image " + (index + 3) + " = " + getReferenceFilename(reference) + " (reference for " + reference.annotationLabel + ")";
         });
 
         return [
           "Use Image 1 as the original base image.",
           "Use Image 2 as a location reference ONLY. Image 2 contains colored shapes, arrows, freehand marks, and number labels (e.g. RED_01) that indicate WHERE to edit. These marks, and ANY text or labels visible in Image 2, must NOT appear in the final image. Do not render, redraw, or reproduce them.",
-          "Reference images (apply the overall look — material, style, color, form, mood — of the WHOLE reference image to the matched marked area):",
+          "Reference images are attached per marked area. Apply the overall look — material, style, color, form, mood, object/content type — of each reference image only to its matched marked area:",
           referenceLines.join("\n"),
           "",
           "The instructions below may be written in Korean. Translate each instruction into English and apply it.",
           "IMPORTANT: Any text, signage, labels, or lettering that appears in the FINAL edited image must be rendered in ENGLISH, not Korean. For example, if an instruction says to change a sign to \"스포츠 게임\", render it as \"SPORTS GAME\" in the image.",
           "",
-          "Apply edits only to the marked areas. For each colored mark, apply its instruction; if a reference is noted, make that area match the referenced image:",
+          "Apply edits only to the marked areas. For each colored mark, apply its instruction; if a reference image is noted, change that area to match the attached reference image:",
           "",
           entries,
           "",
@@ -3917,7 +3982,8 @@
         var usedReferences = getUsedReferences();
         var referenceMap = getReferenceImageMap(usedReferences);
         var entries = state.annotations.map(function (annotation) {
-          return formatPromptLabel(annotation, referenceMap) + ":\n" + (cleanInstruction(annotation.text) || "[수정 내용 미입력]");
+          var instruction = formatEditInstruction(annotation, "이 영역을 첨부된 레퍼런스 이미지처럼 변경");
+          return formatPromptLabel(annotation, referenceMap) + ":\n" + (instruction || "[수정 내용 미입력]");
         }).join("\n\n");
 
         if (!entries) {
@@ -3944,7 +4010,7 @@
           "첨부 이미지 1 = 01_original.png",
           "첨부 이미지 2 = 02_marked_reference.png"
         ].concat(usedReferences.map(function (reference, index) {
-          return "첨부 이미지 " + (index + 3) + " = " + getReferenceFilename(reference) + " (" + reference.label + ")";
+          return "첨부 이미지 " + (index + 3) + " = " + getReferenceFilename(reference) + " (" + reference.annotationLabel + " 레퍼런스)";
         }));
 
         return [
@@ -3952,7 +4018,7 @@
           "",
           "이미지 1을 원본 이미지로 사용하고,",
           "이미지 2는 수정 위치 표시용 참고 이미지로만 사용하세요.",
-          "이미지 3부터는 마킹별 레퍼런스입니다. 각 마킹에 적힌 REF/Image 매핑에 맞춰 해당 영역을 그 레퍼런스의 재질·스타일·색상·형태·무드처럼 수정하세요.",
+          "이미지 3부터는 마킹별로 직접 첨부한 레퍼런스입니다. 각 마킹에 적힌 Image 매핑에 맞춰 해당 영역만 그 레퍼런스의 재질·스타일·색상·형태·무드·실물 콘텐츠처럼 수정하세요.",
           "",
           "지시문이 한글이면 영문으로 번역해서 적용하고, 최종 이미지에 들어가는 간판·문구·라벨은 모두 영문으로 렌더하세요(예: '스포츠 게임' → 'SPORTS GAME'). 표시용 컬러 마크·번호라벨·텍스트는 이미지에 넣지 마세요.",
           "",
@@ -4247,6 +4313,7 @@
         }
         if (shouldCleanupReference) {
           cleanupReferenceObjectUrls();
+          cleanupAnnotationReferenceObjectUrls();
         }
       }
 
@@ -4254,6 +4321,14 @@
         state.references.forEach(function (reference) {
           if (reference.url) {
             URL.revokeObjectURL(reference.url);
+          }
+        });
+      }
+
+      function cleanupAnnotationReferenceObjectUrls() {
+        state.annotations.forEach(function (annotation) {
+          if (annotation.refImage && annotation.refImage.url) {
+            URL.revokeObjectURL(annotation.refImage.url);
           }
         });
       }
@@ -4500,6 +4575,14 @@
           .replace(/>/g, "&gt;")
           .replace(/"/g, "&quot;")
           .replace(/'/g, "&#39;");
+      }
+
+      function sanitizeFilename(value) {
+        return String(value || "reference")
+          .trim()
+          .replace(/[\\/:*?"<>|]+/g, "_")
+          .replace(/\s+/g, "_")
+          .replace(/^_+|_+$/g, "") || "reference";
       }
 
       function cssEscape(value) {
