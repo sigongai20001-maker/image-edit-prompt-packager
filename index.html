@@ -285,6 +285,10 @@
       box-shadow: 0 0 0 4px rgba(59, 91, 219, 0.10);
     }
 
+    .reference-zone {
+      margin-top: 12px;
+    }
+
     .drop-title {
       margin: 0;
       color: var(--text-strong);
@@ -436,6 +440,32 @@
     .preset-input:focus {
       border-color: var(--focus);
       box-shadow: 0 0 0 3px rgba(59, 91, 219, 0.12);
+    }
+
+    .reference-preview {
+      position: relative;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: #ffffff;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.72);
+    }
+
+    .reference-preview img {
+      display: block;
+      width: 100%;
+      max-height: 138px;
+      object-fit: contain;
+      background: var(--surface-raised);
+    }
+
+    .reference-preview .mini-btn {
+      position: absolute;
+      top: 7px;
+      right: 7px;
+      color: #ffffff;
+      background: rgba(15, 23, 42, 0.78);
+      border-color: rgba(255, 255, 255, 0.24);
     }
 
     .swatch {
@@ -945,6 +975,10 @@
       padding: 14px;
     }
 
+    .output-grid.has-reference {
+      grid-template-columns: 1fr 1fr 1fr 1.35fr;
+    }
+
     .output-panel.is-collapsed .output-grid {
       display: none;
     }
@@ -1198,6 +1232,23 @@
             <div class="file-meta" id="fileMeta">아직 업로드된 이미지가 없습니다.</div>
           </div>
 
+          <input class="file-input" id="referenceInput" type="file" accept="image/png,image/jpeg,image/webp">
+          <div class="drop-zone reference-zone" id="referenceDropZone">
+            <p class="drop-title">레퍼런스 이미지(선택)</p>
+            <label class="btn" for="referenceInput">
+              <i class="ti ti-photo-plus" aria-hidden="true"></i>
+              파일 선택
+            </label>
+            <div class="small-note">마킹 영역에 적용할 스타일/재질/색상 참고</div>
+            <div class="reference-preview" id="referenceUploadPreview" hidden>
+              <img id="referenceUploadThumb" alt="레퍼런스 이미지 미리보기">
+              <button class="mini-btn" id="removeReferenceBtn" type="button" title="레퍼런스 제거" aria-label="레퍼런스 제거">
+                <i class="ti ti-x" aria-hidden="true"></i>
+              </button>
+            </div>
+            <div class="file-meta" id="referenceMeta">레퍼런스 이미지가 없습니다.</div>
+          </div>
+
           <div class="tool-group">
             <div class="tool-label">표시 방식</div>
             <div class="tool-grid" role="toolbar" aria-label="표시 방식">
@@ -1311,7 +1362,7 @@
         <div class="output-actions">
           <button class="btn dark" id="downloadAllBtn" type="button" disabled>
             <i class="ti ti-download" aria-hidden="true"></i>
-            Download All 3 Files
+            <span id="downloadAllLabel">Download All 3 Files</span>
           </button>
           <button class="btn" id="copyGptBtn" type="button" disabled>
             <i class="ti ti-copy" aria-hidden="true"></i>
@@ -1365,9 +1416,31 @@
           </div>
         </section>
 
+        <section class="output-block" id="referenceOutputBlock" hidden>
+          <div class="output-block-head">
+            <span class="output-name">03_reference.png</span>
+          </div>
+          <div class="preview-box">
+            <img id="referencePreview" alt="03_reference.png 미리보기" hidden>
+            <span class="small-note" id="referencePlaceholder">대기 중</span>
+          </div>
+          <div class="panel-body">
+            <div class="button-row">
+              <button class="btn" id="copyReferenceBtn" type="button" disabled>
+                <i class="ti ti-copy" aria-hidden="true"></i>
+                Copy Reference Image
+              </button>
+              <button class="btn" id="downloadReferenceBtn" type="button" disabled>
+                <i class="ti ti-download" aria-hidden="true"></i>
+                Download Reference PNG
+              </button>
+            </div>
+          </div>
+        </section>
+
         <section class="output-block prompt-block">
           <div class="output-block-head">
-            <span class="output-name">03_edit_prompt.txt</span>
+            <span class="output-name" id="promptOutputName">03_edit_prompt.txt</span>
           </div>
           <textarea class="prompt-output" id="promptOutput" readonly spellcheck="false"></textarea>
           <div class="panel-body">
@@ -1447,6 +1520,9 @@
         originalFile: null,
         originalUrl: "",
         originalPreviewUrl: "",
+        referenceImage: null,
+        referenceFile: null,
+        referenceUrl: "",
         imageRect: { x: 0, y: 0, width: 0, height: 0 },
         activeTool: "rect",
         annotations: [],
@@ -1470,6 +1546,12 @@
       var imageInput = document.getElementById("imageInput");
       var dropZone = document.getElementById("dropZone");
       var fileMeta = document.getElementById("fileMeta");
+      var referenceInput = document.getElementById("referenceInput");
+      var referenceDropZone = document.getElementById("referenceDropZone");
+      var referenceMeta = document.getElementById("referenceMeta");
+      var referenceUploadPreview = document.getElementById("referenceUploadPreview");
+      var referenceUploadThumb = document.getElementById("referenceUploadThumb");
+      var removeReferenceBtn = document.getElementById("removeReferenceBtn");
       var canvasShell = document.getElementById("canvasShell");
       var stage = document.getElementById("stage");
       var emptyState = document.getElementById("emptyState");
@@ -1497,16 +1579,24 @@
       var downloadOriginalBtn = document.getElementById("downloadOriginalBtn");
       var copyMarkedBtn = document.getElementById("copyMarkedBtn");
       var downloadMarkedBtn = document.getElementById("downloadMarkedBtn");
+      var copyReferenceBtn = document.getElementById("copyReferenceBtn");
+      var downloadReferenceBtn = document.getElementById("downloadReferenceBtn");
       var copyPromptBtn = document.getElementById("copyPromptBtn");
       var downloadPromptBtn = document.getElementById("downloadPromptBtn");
       var downloadAllBtn = document.getElementById("downloadAllBtn");
+      var downloadAllLabel = document.getElementById("downloadAllLabel");
       var copyGptBtn = document.getElementById("copyGptBtn");
       var outputPanel = document.getElementById("outputPanel");
       var outputToggleBtn = document.getElementById("outputToggleBtn");
+      var outputContent = document.getElementById("outputContent");
+      var referenceOutputBlock = document.getElementById("referenceOutputBlock");
       var originalPreview = document.getElementById("originalPreview");
       var markedPreview = document.getElementById("markedPreview");
+      var referencePreview = document.getElementById("referencePreview");
       var originalPlaceholder = document.getElementById("originalPlaceholder");
       var markedPlaceholder = document.getElementById("markedPlaceholder");
+      var referencePlaceholder = document.getElementById("referencePlaceholder");
+      var promptOutputName = document.getElementById("promptOutputName");
 
       initialize();
 
@@ -1515,6 +1605,7 @@
         renderColorStrip();
         renderAnnotationList();
         renderPresetList();
+        updateReferencePreview();
         updateButtons();
         updatePromptPreview();
 
@@ -1524,6 +1615,19 @@
             loadImageFile(file);
           }
         });
+
+        referenceInput.addEventListener("change", function (event) {
+          var file = event.target.files && event.target.files[0];
+          if (file) {
+            loadReferenceFile(file);
+          }
+        });
+
+        referenceDropZone.addEventListener("dragenter", handleReferenceDragEnter);
+        referenceDropZone.addEventListener("dragover", handleReferenceDragOver);
+        referenceDropZone.addEventListener("dragleave", handleReferenceDragLeave);
+        referenceDropZone.addEventListener("drop", handleReferenceDrop);
+        removeReferenceBtn.addEventListener("click", removeReferenceImage);
 
         document.addEventListener("dragenter", handleDocumentDragEnter);
         document.addEventListener("dragover", handleDocumentDragOver);
@@ -1572,6 +1676,12 @@
         });
         downloadMarkedBtn.addEventListener("click", function () {
           downloadMarked();
+        });
+        copyReferenceBtn.addEventListener("click", function () {
+          copyImageBlob(getReferenceBlob, "레퍼런스 이미지가 복사되었습니다.", true);
+        });
+        downloadReferenceBtn.addEventListener("click", function () {
+          downloadReference();
         });
         copyPromptBtn.addEventListener("click", function () {
           copyText(buildEditPrompt(), "프롬프트가 복사되었습니다.");
@@ -1658,6 +1768,56 @@
         loadImageFile(file);
       }
 
+      function handleReferenceDragEnter(event) {
+        if (!isFileDrag(event)) {
+          return;
+        }
+        event.preventDefault();
+        event.stopPropagation();
+        state.dragDepth = 0;
+        hideDropTarget();
+        referenceDropZone.classList.add("is-dragging");
+      }
+
+      function handleReferenceDragOver(event) {
+        if (!isFileDrag(event)) {
+          return;
+        }
+        event.preventDefault();
+        event.stopPropagation();
+        event.dataTransfer.dropEffect = "copy";
+        state.dragDepth = 0;
+        hideDropTarget();
+        referenceDropZone.classList.add("is-dragging");
+      }
+
+      function handleReferenceDragLeave(event) {
+        if (!isFileDrag(event)) {
+          return;
+        }
+        event.stopPropagation();
+        if (!referenceDropZone.contains(event.relatedTarget)) {
+          referenceDropZone.classList.remove("is-dragging");
+        }
+      }
+
+      function handleReferenceDrop(event) {
+        if (!isFileDrag(event)) {
+          return;
+        }
+        event.preventDefault();
+        event.stopPropagation();
+        state.dragDepth = 0;
+        hideDropTarget();
+        referenceDropZone.classList.remove("is-dragging");
+        var file = getFirstImageFile(event.dataTransfer);
+        if (!file) {
+          showToast("PNG, JPG, WEBP 이미지만 사용할 수 있습니다.");
+          return;
+        }
+        loadReferenceFile(file);
+      }
+
       function handleDocumentPaste(event) {
         if (isTextEditingTarget(event.target)) {
           return;
@@ -1742,7 +1902,7 @@
           return;
         }
 
-        cleanupObjectUrls();
+        cleanupObjectUrls(false);
         state.originalFile = file;
         state.originalUrl = URL.createObjectURL(file);
         state.originalPreviewUrl = "";
@@ -1802,6 +1962,73 @@
           resetWork();
         };
         image.src = state.originalUrl;
+      }
+
+      function loadReferenceFile(file) {
+        if (!isSupportedImageFile(file)) {
+          showToast("PNG, JPG, WEBP 이미지만 사용할 수 있습니다.");
+          return;
+        }
+
+        cleanupReferenceObjectUrls();
+        state.referenceFile = file;
+        state.referenceUrl = URL.createObjectURL(file);
+        referenceInput.value = "";
+
+        var image = new Image();
+        image.onload = function () {
+          state.referenceImage = image;
+          referenceMeta.innerHTML = [
+            "<strong>" + escapeHtml(file.name || "clipboard-reference.png") + "</strong>",
+            "<span>" + formatBytes(file.size) + " · " + (image.naturalWidth || image.width) + " × " + (image.naturalHeight || image.height) + "px</span>"
+          ].join("");
+          updateReferencePreview();
+          invalidateGeneratedOutput();
+          updatePromptPreview();
+          updateButtons();
+          showToast("레퍼런스 이미지가 업로드되었습니다.");
+        };
+        image.onerror = function () {
+          showToast("레퍼런스 이미지를 불러오지 못했습니다.");
+          removeReferenceImage();
+        };
+        image.src = state.referenceUrl;
+      }
+
+      function removeReferenceImage() {
+        cleanupReferenceObjectUrls();
+        state.referenceImage = null;
+        state.referenceFile = null;
+        state.referenceUrl = "";
+        referenceInput.value = "";
+        referenceMeta.textContent = "레퍼런스 이미지가 없습니다.";
+        updateReferencePreview();
+        invalidateGeneratedOutput();
+        updatePromptPreview();
+        updateButtons();
+        showToast("레퍼런스 이미지가 제거되었습니다.");
+      }
+
+      function updateReferencePreview() {
+        var hasReference = Boolean(state.referenceImage && state.referenceUrl);
+        referenceUploadPreview.hidden = !hasReference;
+        referenceOutputBlock.hidden = !hasReference;
+        outputContent.classList.toggle("has-reference", hasReference);
+        promptOutputName.textContent = hasReference ? "04_edit_prompt.txt" : "03_edit_prompt.txt";
+        downloadAllLabel.textContent = hasReference ? "Download All 4 Files" : "Download All 3 Files";
+
+        if (hasReference) {
+          referenceUploadThumb.src = state.referenceUrl;
+          referencePreview.src = state.referenceUrl;
+          referencePreview.hidden = false;
+          referencePlaceholder.hidden = true;
+        } else {
+          referenceUploadThumb.removeAttribute("src");
+          referencePreview.removeAttribute("src");
+          referencePreview.hidden = true;
+          referencePlaceholder.textContent = "대기 중";
+          referencePlaceholder.hidden = false;
+        }
       }
 
       function setOriginalPreview() {
@@ -3034,15 +3261,33 @@
           entries = "[No marked areas yet.]";
         }
 
+        if (!state.referenceImage) {
+          return [
+            "Use Image 1 as the original base image.",
+            "",
+            "Use Image 2 as a location reference ONLY. Image 2 contains colored shapes, arrows, freehand marks, and number labels (e.g. RED_01) that indicate WHERE to edit. These marks, and ANY text or labels visible in Image 2, must NOT appear in the final image. Do not render, redraw, or reproduce them.",
+            "",
+            "The instructions below may be written in Korean. Translate each instruction into English and apply it.",
+            "IMPORTANT: Any text, signage, labels, or lettering that appears in the FINAL edited image must be rendered in ENGLISH, not Korean. For example, if an instruction says to change a sign to \"스포츠 게임\", render it as \"SPORTS GAME\" in the image.",
+            "",
+            "Apply edits only to the marked areas, matching each colored mark to its instruction:",
+            "",
+            entries,
+            "",
+            "Preserve all unmarked areas exactly.",
+            "Keep the original camera angle, lighting, structure, layout, scale, perspective, and overall composition unchanged."
+          ].join("\n");
+        }
+
         return [
           "Use Image 1 as the original base image.",
-          "",
           "Use Image 2 as a location reference ONLY. Image 2 contains colored shapes, arrows, freehand marks, and number labels (e.g. RED_01) that indicate WHERE to edit. These marks, and ANY text or labels visible in Image 2, must NOT appear in the final image. Do not render, redraw, or reproduce them.",
+          "Use Image 3 as a STYLE/CONTENT reference — apply its look (material, style, color, form, mood) to the marked areas.",
           "",
           "The instructions below may be written in Korean. Translate each instruction into English and apply it.",
           "IMPORTANT: Any text, signage, labels, or lettering that appears in the FINAL edited image must be rendered in ENGLISH, not Korean. For example, if an instruction says to change a sign to \"스포츠 게임\", render it as \"SPORTS GAME\" in the image.",
           "",
-          "Apply edits only to the marked areas, matching each colored mark to its instruction:",
+          "Apply edits only to the marked areas, referencing Image 3, matching each colored mark to its instruction:",
           "",
           entries,
           "",
@@ -3060,12 +3305,30 @@
           entries = "[표시된 수정 영역 없음]";
         }
 
+        if (!state.referenceImage) {
+          return [
+            "첨부 이미지 1 = 01_original.png",
+            "첨부 이미지 2 = 02_marked_reference.png",
+            "",
+            "이미지 1을 원본 이미지로 사용하고,",
+            "이미지 2는 수정 위치 표시용 참고 이미지로만 사용하세요.",
+            "",
+            "지시문이 한글이면 영문으로 번역해서 적용하고, 최종 이미지에 들어가는 간판·문구·라벨은 모두 영문으로 렌더하세요(예: '스포츠 게임' → 'SPORTS GAME'). 표시용 컬러 마크·번호라벨·텍스트는 이미지에 넣지 마세요.",
+            "",
+            "[컬러별 수정 프롬프트]",
+            "",
+            entries
+          ].join("\n");
+        }
+
         return [
           "첨부 이미지 1 = 01_original.png",
           "첨부 이미지 2 = 02_marked_reference.png",
+          "첨부 이미지 3 = 03_reference.png",
           "",
           "이미지 1을 원본 이미지로 사용하고,",
           "이미지 2는 수정 위치 표시용 참고 이미지로만 사용하세요.",
+          "이미지 3은 전체 공통 레퍼런스입니다. 표시된 마킹 영역을 이미지 3의 재질·스타일·색상·형태·무드처럼 수정하세요.",
           "",
           "지시문이 한글이면 영문으로 번역해서 적용하고, 최종 이미지에 들어가는 간판·문구·라벨은 모두 영문으로 렌더하세요(예: '스포츠 게임' → 'SPORTS GAME'). 표시용 컬러 마크·번호라벨·텍스트는 이미지에 넣지 마세요.",
           "",
@@ -3169,6 +3432,19 @@
         });
       }
 
+      function getReferenceBlob() {
+        return new Promise(function (resolve) {
+          var output = document.createElement("canvas");
+          var width = state.referenceImage.naturalWidth || state.referenceImage.width;
+          var height = state.referenceImage.naturalHeight || state.referenceImage.height;
+          output.width = width;
+          output.height = height;
+          var outputCtx = output.getContext("2d");
+          outputCtx.drawImage(state.referenceImage, 0, 0, width, height);
+          output.toBlob(resolve, "image/png");
+        });
+      }
+
       function downloadOriginal() {
         if (!state.image) {
           return;
@@ -3187,8 +3463,17 @@
         });
       }
 
+      function downloadReference() {
+        if (!state.referenceImage) {
+          return;
+        }
+        getReferenceBlob().then(function (blob) {
+          downloadBlob(blob, "03_reference.png");
+        });
+      }
+
       function downloadPrompt() {
-        downloadBlob(new Blob([buildEditPrompt()], { type: "text/plain;charset=utf-8" }), "03_edit_prompt.txt");
+        downloadBlob(new Blob([buildEditPrompt()], { type: "text/plain;charset=utf-8" }), getPromptFilename());
       }
 
       function downloadAll() {
@@ -3197,13 +3482,23 @@
         }
         downloadOriginal();
         window.setTimeout(downloadMarked, 260);
-        window.setTimeout(downloadPrompt, 520);
-        showToast("3개 파일 다운로드를 시작했습니다.");
+        if (state.referenceImage) {
+          window.setTimeout(downloadReference, 520);
+          window.setTimeout(downloadPrompt, 780);
+          showToast("4개 파일 다운로드를 시작했습니다.");
+        } else {
+          window.setTimeout(downloadPrompt, 520);
+          showToast("3개 파일 다운로드를 시작했습니다.");
+        }
       }
 
-      function copyImageBlob(blobFactory, successMessage) {
-        if (!state.image) {
+      function copyImageBlob(blobFactory, successMessage, allowReferenceOnly) {
+        if (!state.image && !allowReferenceOnly) {
           showToast("먼저 이미지를 업로드하세요.");
+          return;
+        }
+        if (allowReferenceOnly && !state.referenceImage) {
+          showToast("먼저 레퍼런스 이미지를 업로드하세요.");
           return;
         }
         if (!navigator.clipboard || !window.ClipboardItem) {
@@ -3231,6 +3526,10 @@
           return;
         }
         fallbackCopyText(text, successMessage);
+      }
+
+      function getPromptFilename() {
+        return state.referenceImage ? "04_edit_prompt.txt" : "03_edit_prompt.txt";
       }
 
       function fallbackCopyText(text, successMessage) {
@@ -3269,6 +3568,9 @@
         state.originalFile = null;
         state.originalUrl = "";
         state.originalPreviewUrl = "";
+        state.referenceImage = null;
+        state.referenceFile = null;
+        state.referenceUrl = "";
         state.markedPreviewUrl = "";
         state.imageRect = { x: 0, y: 0, width: 0, height: 0 };
         state.annotations = [];
@@ -3291,18 +3593,21 @@
         stage.classList.add("is-empty");
         bubbleLayer.innerHTML = "";
         fileMeta.textContent = "아직 업로드된 이미지가 없습니다.";
+        referenceMeta.textContent = "레퍼런스 이미지가 없습니다.";
         originalPreview.hidden = true;
         markedPreview.hidden = true;
         originalPlaceholder.hidden = false;
         markedPlaceholder.hidden = false;
         markedPlaceholder.textContent = "대기 중";
+        updateReferencePreview();
         renderAnnotationList();
         updatePromptPreview();
         updateButtons();
         updateCanvasStatus();
       }
 
-      function cleanupObjectUrls() {
+      function cleanupObjectUrls(includeReference) {
+        var shouldCleanupReference = includeReference !== false;
         if (state.originalUrl) {
           URL.revokeObjectURL(state.originalUrl);
         }
@@ -3312,12 +3617,23 @@
         if (state.markedPreviewUrl) {
           URL.revokeObjectURL(state.markedPreviewUrl);
         }
+        if (shouldCleanupReference) {
+          cleanupReferenceObjectUrls();
+        }
+      }
+
+      function cleanupReferenceObjectUrls() {
+        if (state.referenceUrl) {
+          URL.revokeObjectURL(state.referenceUrl);
+        }
       }
 
       function updateButtons() {
         var hasImage = Boolean(state.image);
+        var hasReference = Boolean(state.referenceImage);
         var hasAnnotations = state.annotations.length > 0;
         var hasPackage = hasImage && state.generated;
+        updateReferencePreview();
         generateBtn.disabled = !hasImage;
         undoBtn.disabled = !state.history.length;
         redoBtn.disabled = !state.redoStack.length;
@@ -3326,6 +3642,8 @@
         downloadOriginalBtn.disabled = !hasImage;
         copyMarkedBtn.disabled = !hasPackage;
         downloadMarkedBtn.disabled = !hasPackage;
+        copyReferenceBtn.disabled = !hasReference;
+        downloadReferenceBtn.disabled = !hasReference;
         copyPromptBtn.disabled = !hasPackage;
         downloadPromptBtn.disabled = !hasPackage;
         downloadAllBtn.disabled = !hasPackage;
