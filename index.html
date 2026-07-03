@@ -403,18 +403,8 @@
       text-overflow: ellipsis;
     }
 
-    .edit-type-name span {
-      overflow: hidden;
-      color: var(--muted);
-      font-size: 11px;
-      font-weight: 700;
-      white-space: nowrap;
-      text-overflow: ellipsis;
-    }
-
     .edit-type-form {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
       gap: 6px;
     }
 
@@ -1316,7 +1306,6 @@
             <div class="edit-type-list" id="editTypeList"></div>
             <div class="edit-type-form">
               <input class="edit-type-input" id="editTypeLabelInput" type="text" placeholder="유형명">
-              <input class="edit-type-input" id="editTypeTagInput" type="text" placeholder="영문 태그">
               <button class="btn" id="addEditTypeBtn" type="button">
                 <i class="ti ti-plus" aria-hidden="true"></i>
                 유형 등록
@@ -1520,6 +1509,33 @@
         { value: "display-media", label: "전시연출매체변경", tag: "DISPLAY MEDIA" }
       ];
 
+      var EDIT_TYPE_TAG_ALIASES = {
+        "문구수정": "TEXT EDIT",
+        "텍스트수정": "TEXT EDIT",
+        "글자수정": "TEXT EDIT",
+        "재질변경": "MATERIAL",
+        "소재변경": "MATERIAL",
+        "컬러변경": "COLOR",
+        "색상변경": "COLOR",
+        "요소추가": "ADD",
+        "오브젝트추가": "ADD",
+        "요소삭제": "REMOVE",
+        "오브젝트삭제": "REMOVE",
+        "그래픽변경": "GRAPHIC",
+        "전시연출매체변경": "DISPLAY MEDIA",
+        "형태변경": "FORM",
+        "모양변경": "FORM",
+        "조명변경": "LIGHTING",
+        "위치변경": "POSITION",
+        "배치변경": "LAYOUT",
+        "크기변경": "SCALE",
+        "스케일변경": "SCALE",
+        "패턴변경": "PATTERN",
+        "문양변경": "PATTERN",
+        "텍스처변경": "TEXTURE",
+        "분위기변경": "MOOD"
+      };
+
       var EDIT_TYPE_STORAGE_KEY = "imageEditPromptPackager.editTypes.v1";
       var HISTORY_LIMIT = 80;
       var MAX_REFERENCES = 5;
@@ -1571,7 +1587,6 @@
       var editTypeList = document.getElementById("editTypeList");
       var editTypeCount = document.getElementById("editTypeCount");
       var editTypeLabelInput = document.getElementById("editTypeLabelInput");
-      var editTypeTagInput = document.getElementById("editTypeTagInput");
       var promptOutput = document.getElementById("promptOutput");
       var dropOverlay = document.getElementById("dropOverlay");
       var toast = document.getElementById("toast");
@@ -1672,13 +1687,11 @@
         clearBtn.addEventListener("click", clearAnnotations);
         newWorkBtn.addEventListener("click", resetWork);
         addEditTypeBtn.addEventListener("click", addEditTypeFromInput);
-        [editTypeLabelInput, editTypeTagInput].forEach(function (input) {
-          input.addEventListener("keydown", function (event) {
-            if (event.key === "Enter") {
-              event.preventDefault();
-              addEditTypeFromInput();
-            }
-          });
+        editTypeLabelInput.addEventListener("keydown", function (event) {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            addEditTypeFromInput();
+          }
         });
 
         copyOriginalBtn.addEventListener("click", function () {
@@ -1758,7 +1771,6 @@
           row.innerHTML = [
             "<span class=\"edit-type-name\">",
             "<strong>" + escapeHtml(type.label) + "</strong>",
-            "<span>[" + escapeHtml(type.tag) + "]</span>",
             "</span>",
             "<button class=\"mini-btn\" data-action=\"remove-edit-type\" type=\"button\" title=\"삭제\" aria-label=\"" + escapeHtml(type.label) + " 삭제\"" + (editTypes.length <= 1 ? " disabled" : "") + "><i class=\"ti ti-trash\" aria-hidden=\"true\"></i></button>"
           ].join("");
@@ -1807,7 +1819,7 @@
 
       function normalizeEditType(type) {
         var label = String(type && type.label ? type.label : "").trim().replace(/\s+/g, " ");
-        var tag = normalizeEditTypeTag(type && type.tag ? type.tag : "");
+        var tag = normalizeEditTypeTag(type && type.tag ? type.tag : inferEditTypeTag(label));
         var value = String(type && type.value ? type.value : "").trim();
         if (!label || !tag) {
           return null;
@@ -1852,15 +1864,10 @@
 
       function addEditTypeFromInput() {
         var label = String(editTypeLabelInput.value || "").trim().replace(/\s+/g, " ");
-        var tag = normalizeEditTypeTag(editTypeTagInput.value);
+        var tag = inferEditTypeTag(label);
         if (!label) {
           showToast("유형명을 입력하세요.");
           editTypeLabelInput.focus();
-          return;
-        }
-        if (!tag) {
-          showToast("영문 태그를 입력하세요.");
-          editTypeTagInput.focus();
           return;
         }
         if (getEditTypes().some(function (type) { return type.label === label; })) {
@@ -1873,7 +1880,6 @@
           tag: tag
         });
         editTypeLabelInput.value = "";
-        editTypeTagInput.value = "";
         saveEditTypes();
         refreshEditTypeUi();
         showToast("유형이 등록되었습니다.");
@@ -1927,6 +1933,18 @@
 
       function normalizeEditTypeTag(value) {
         return String(value || "").replace(/[\[\]]/g, "").trim().replace(/\s+/g, " ").toUpperCase();
+      }
+
+      function inferEditTypeTag(label) {
+        var cleanLabel = String(label || "").trim().replace(/\s+/g, " ");
+        var compactLabel = cleanLabel.replace(/\s+/g, "");
+        if (EDIT_TYPE_TAG_ALIASES[compactLabel]) {
+          return EDIT_TYPE_TAG_ALIASES[compactLabel];
+        }
+        if (/^[a-z0-9][a-z0-9\s/_-]*$/i.test(cleanLabel)) {
+          return normalizeEditTypeTag(cleanLabel);
+        }
+        return cleanLabel;
       }
 
       function handleDocumentDragEnter(event) {
