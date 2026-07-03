@@ -373,75 +373,6 @@
       justify-content: center;
     }
 
-    .preset-panel {
-      padding-top: 2px;
-    }
-
-    .preset-list {
-      display: grid;
-      gap: 6px;
-      max-height: 160px;
-      overflow: auto;
-      padding-right: 2px;
-    }
-
-    .preset-row {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
-      gap: 6px;
-      align-items: center;
-      padding: 7px;
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      background: var(--surface-raised);
-    }
-
-    .preset-name {
-      min-width: 0;
-      border: 0;
-      padding: 0;
-      background: transparent;
-      color: var(--text);
-      font-size: 12px;
-      font-weight: 680;
-      line-height: 1.35;
-      text-align: left;
-      cursor: pointer;
-    }
-
-    .preset-name:hover {
-      color: var(--primary);
-    }
-
-    .preset-actions {
-      display: inline-flex;
-      gap: 4px;
-    }
-
-    .preset-form {
-      display: grid;
-      gap: 7px;
-    }
-
-    .preset-input {
-      width: 100%;
-      min-height: 54px;
-      resize: vertical;
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      padding: 8px;
-      color: var(--text);
-      background: #ffffff;
-      outline: none;
-      font-size: 12px;
-      line-height: 1.45;
-    }
-
-    .preset-input:focus {
-      border-color: var(--focus);
-      box-shadow: 0 0 0 3px rgba(59, 91, 219, 0.12);
-    }
-
     .reference-preview,
     .reference-list {
       display: grid;
@@ -728,31 +659,6 @@
     .annotation-type-select:focus {
       border-color: var(--focus);
       box-shadow: 0 0 0 3px rgba(59, 91, 219, 0.12);
-    }
-
-    .preset-quick-list {
-      display: flex;
-      gap: 5px;
-      flex-wrap: wrap;
-    }
-
-    .preset-chip {
-      min-height: 27px;
-      max-width: 100%;
-      border: 1px solid var(--border);
-      border-radius: 999px;
-      padding: 0 8px;
-      background: var(--surface-raised);
-      color: var(--text);
-      font-size: 11.5px;
-      font-weight: 700;
-      cursor: pointer;
-    }
-
-    .preset-chip:hover {
-      border-color: var(--primary);
-      color: var(--primary);
-      background: var(--primary-soft);
     }
 
     .bubble-textarea {
@@ -1344,26 +1250,6 @@
             </div>
           </div>
 
-          <div class="tool-group preset-panel">
-            <div class="tool-group-head">
-              <div class="tool-label">프리셋</div>
-              <span class="small-note">선택 마킹에 삽입</span>
-            </div>
-            <div class="preset-list" id="presetList"></div>
-            <div class="preset-form">
-              <textarea class="preset-input" id="presetInput" rows="2" placeholder="자주 쓰는 지시문 입력" spellcheck="false"></textarea>
-              <div class="button-row">
-                <button class="btn" id="savePresetBtn" type="button">
-                  <i class="ti ti-plus" aria-hidden="true"></i>
-                  추가
-                </button>
-                <button class="btn subtle" id="cancelPresetEditBtn" type="button" hidden>
-                  취소
-                </button>
-              </div>
-            </div>
-          </div>
-
           <div class="tool-group compact-annotations">
             <div class="tool-group-head">
               <div class="tool-label">마킹 목록</div>
@@ -1535,18 +1421,11 @@
         { value: "material", label: "재질변경", tag: "MATERIAL" },
         { value: "color", label: "컬러변경", tag: "COLOR" },
         { value: "add", label: "요소추가", tag: "ADD" },
-        { value: "remove", label: "요소삭제", tag: "REMOVE" }
+        { value: "remove", label: "요소삭제", tag: "REMOVE" },
+        { value: "graphic", label: "그래픽변경", tag: "GRAPHIC" },
+        { value: "display-media", label: "전시연출매체변경", tag: "DISPLAY MEDIA" }
       ];
 
-      var PRESET_STORAGE_KEY = "imageEditPromptPackager.presets.v1";
-      var DEFAULT_PRESETS = [
-        "간판 문구를 [내용]으로 수정 (영문으로 렌더)",
-        "재질을 [금속/목재/석재]로 변경",
-        "컬러를 [색상]으로 변경",
-        "이 영역에 그래픽/로고 삽입",
-        "이 영역의 오브젝트 삭제",
-        "전통 패턴/문양 적용"
-      ];
       var HISTORY_LIMIT = 80;
       var MAX_REFERENCES = 5;
 
@@ -1566,8 +1445,6 @@
         nextNumber: 1,
         history: [],
         redoStack: [],
-        presets: [],
-        editingPresetIndex: -1,
         generated: false,
         outputVersion: 0,
         promptText: "",
@@ -1604,10 +1481,6 @@
       var redoBtn = document.getElementById("redoBtn");
       var clearBtn = document.getElementById("clearBtn");
       var newWorkBtn = document.getElementById("newWorkBtn");
-      var presetList = document.getElementById("presetList");
-      var presetInput = document.getElementById("presetInput");
-      var savePresetBtn = document.getElementById("savePresetBtn");
-      var cancelPresetEditBtn = document.getElementById("cancelPresetEditBtn");
       var copyOriginalBtn = document.getElementById("copyOriginalBtn");
       var downloadOriginalBtn = document.getElementById("downloadOriginalBtn");
       var copyMarkedBtn = document.getElementById("copyMarkedBtn");
@@ -1634,10 +1507,8 @@
       initialize();
 
       function initialize() {
-        state.presets = loadPresets();
         renderColorStrip();
         renderAnnotationList();
-        renderPresetList();
         updateReferencePreview();
         updateButtons();
         updatePromptPreview();
@@ -1693,14 +1564,6 @@
         redoBtn.addEventListener("click", redoLast);
         clearBtn.addEventListener("click", clearAnnotations);
         newWorkBtn.addEventListener("click", resetWork);
-        savePresetBtn.addEventListener("click", savePresetFromInput);
-        cancelPresetEditBtn.addEventListener("click", cancelPresetEdit);
-        presetInput.addEventListener("keydown", function (event) {
-          if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
-            event.preventDefault();
-            savePresetFromInput();
-          }
-        });
 
         copyOriginalBtn.addEventListener("click", function () {
           copyImageBlob(getOriginalBlob, "원본 이미지가 복사되었습니다.");
@@ -2621,7 +2484,6 @@
             "<div class=\"bubble-controls\">",
             "<label class=\"bubble-type-row\"><span>유형</span><select class=\"edit-type-select\" data-edit-type-for=\"" + escapeHtml(annotation.id) + "\">" + buildEditTypeOptions(annotation) + "</select></label>",
             "<label class=\"bubble-type-row\"><span>참고</span><select class=\"annotation-ref-select\" data-ref-for=\"" + escapeHtml(annotation.id) + "\">" + buildReferenceOptions(annotation) + "</select></label>",
-            "<div class=\"preset-quick-list\">" + buildPresetChips() + "</div>",
             "</div>",
             "<textarea class=\"bubble-textarea\" placeholder=\"수정 내용 입력\" spellcheck=\"false\"></textarea>"
           ].join("");
@@ -2634,12 +2496,6 @@
           var refSelect = bubble.querySelector(".annotation-ref-select");
           refSelect.addEventListener("change", function () {
             updateAnnotationReference(annotation.id, refSelect.value);
-          });
-
-          bubble.querySelectorAll("[data-preset-index]").forEach(function (button) {
-            button.addEventListener("click", function () {
-              insertPresetIntoAnnotation(annotation.id, Number(button.dataset.presetIndex));
-            });
           });
 
           var textarea = bubble.querySelector("textarea");
@@ -2867,157 +2723,6 @@
             select.value = value;
           }
         });
-      }
-
-      function buildPresetChips() {
-        if (!state.presets.length) {
-          return "<span class=\"small-note\">저장된 프리셋 없음</span>";
-        }
-        return state.presets.map(function (preset, index) {
-          return "<button class=\"preset-chip\" type=\"button\" data-preset-index=\"" + index + "\" title=\"" + escapeHtml(preset) + "\">" + escapeHtml(shortPresetLabel(preset)) + "</button>";
-        }).join("");
-      }
-
-      function renderPresetList() {
-        presetList.innerHTML = "";
-        if (!state.presets.length) {
-          var empty = document.createElement("p");
-          empty.className = "no-items";
-          empty.textContent = "프리셋이 없습니다.";
-          presetList.appendChild(empty);
-          return;
-        }
-
-        state.presets.forEach(function (preset, index) {
-          var row = document.createElement("div");
-          row.className = "preset-row";
-          row.innerHTML = [
-            "<button class=\"preset-name\" type=\"button\" title=\"" + escapeHtml(preset) + "\">" + escapeHtml(preset) + "</button>",
-            "<span class=\"preset-actions\">",
-            "<button class=\"mini-btn\" data-action=\"edit-preset\" type=\"button\" title=\"수정\" aria-label=\"프리셋 수정\"><i class=\"ti ti-pencil\" aria-hidden=\"true\"></i></button>",
-            "<button class=\"mini-btn\" data-action=\"remove-preset\" type=\"button\" title=\"삭제\" aria-label=\"프리셋 삭제\"><i class=\"ti ti-trash\" aria-hidden=\"true\"></i></button>",
-            "</span>"
-          ].join("");
-          row.querySelector(".preset-name").addEventListener("click", function () {
-            insertPresetIntoSelected(index);
-          });
-          row.querySelector("[data-action=\"edit-preset\"]").addEventListener("click", function () {
-            beginPresetEdit(index);
-          });
-          row.querySelector("[data-action=\"remove-preset\"]").addEventListener("click", function () {
-            removePreset(index);
-          });
-          presetList.appendChild(row);
-        });
-      }
-
-      function loadPresets() {
-        try {
-          var raw = localStorage.getItem(PRESET_STORAGE_KEY);
-          if (raw) {
-            var parsed = JSON.parse(raw);
-            if (Array.isArray(parsed)) {
-              var values = parsed.map(function (item) { return String(item || "").trim(); }).filter(Boolean);
-              if (values.length) {
-                return values;
-              }
-            }
-          }
-        } catch (error) {
-          return DEFAULT_PRESETS.slice();
-        }
-        savePresets(DEFAULT_PRESETS);
-        return DEFAULT_PRESETS.slice();
-      }
-
-      function savePresets(presets) {
-        try {
-          localStorage.setItem(PRESET_STORAGE_KEY, JSON.stringify(presets));
-        } catch (error) {
-          showToast("프리셋 저장 공간을 사용할 수 없습니다.");
-        }
-      }
-
-      function savePresetFromInput() {
-        var value = cleanInstruction(presetInput.value);
-        if (!value) {
-          showToast("프리셋 문구를 입력하세요.");
-          return;
-        }
-        if (state.editingPresetIndex >= 0) {
-          state.presets[state.editingPresetIndex] = value;
-          showToast("프리셋이 수정되었습니다.");
-        } else {
-          state.presets.push(value);
-          showToast("프리셋이 추가되었습니다.");
-        }
-        savePresets(state.presets);
-        cancelPresetEdit();
-        renderPresetList();
-        renderBubbles();
-      }
-
-      function beginPresetEdit(index) {
-        if (index < 0 || index >= state.presets.length) {
-          return;
-        }
-        state.editingPresetIndex = index;
-        presetInput.value = state.presets[index];
-        savePresetBtn.innerHTML = "<i class=\"ti ti-check\" aria-hidden=\"true\"></i>수정";
-        cancelPresetEditBtn.hidden = false;
-        presetInput.focus();
-      }
-
-      function cancelPresetEdit() {
-        state.editingPresetIndex = -1;
-        presetInput.value = "";
-        savePresetBtn.innerHTML = "<i class=\"ti ti-plus\" aria-hidden=\"true\"></i>추가";
-        cancelPresetEditBtn.hidden = true;
-      }
-
-      function removePreset(index) {
-        if (index < 0 || index >= state.presets.length) {
-          return;
-        }
-        state.presets.splice(index, 1);
-        if (state.editingPresetIndex === index) {
-          cancelPresetEdit();
-        } else if (state.editingPresetIndex > index) {
-          state.editingPresetIndex -= 1;
-        }
-        savePresets(state.presets);
-        renderPresetList();
-        renderBubbles();
-        showToast("프리셋이 삭제되었습니다.");
-      }
-
-      function insertPresetIntoSelected(index) {
-        if (!state.selectedId) {
-          showToast("먼저 마킹을 선택하세요.");
-          return;
-        }
-        insertPresetIntoAnnotation(state.selectedId, index);
-      }
-
-      function insertPresetIntoAnnotation(id, index) {
-        var annotation = getAnnotationById(id);
-        var preset = state.presets[index];
-        if (!annotation || !preset) {
-          return;
-        }
-        annotation.text = annotation.text ? annotation.text.replace(/\s+$/g, "") + "\n" + preset : preset;
-        state.selectedId = annotation.id;
-        syncTextareas(annotation.id, annotation.text);
-        invalidateGeneratedOutput();
-        updatePromptPreview();
-        updateButtons();
-        renderAnnotationList();
-        showToast("프리셋이 삽입되었습니다.");
-      }
-
-      function shortPresetLabel(value) {
-        var text = String(value || "").trim();
-        return text.length > 22 ? text.slice(0, 21) + "…" : text;
       }
 
       function syncTextareas(id, value) {
