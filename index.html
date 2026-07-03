@@ -1537,6 +1537,7 @@
 
       var NO_EDIT_TYPE_VALUE = "";
       var ADD_EDIT_TYPE_VALUE = "__add_edit_type__";
+      var ADD_REFERENCE_PASTE_VALUE = "__paste_reference_image__";
       var DEFAULT_EDIT_TYPE = "text";
       var DEFAULT_EDIT_TYPES = [
         { value: "text", label: "문구수정", tag: "TEXT EDIT" },
@@ -2137,15 +2138,15 @@
 
       function handleDocumentPaste(event) {
         var annotationId = getAnnotationReferencePasteTarget(event);
-        if (isTextEditingTarget(event.target) && !annotationId) {
+        if (annotationId) {
+          handleAnnotationReferencePaste(event, annotationId);
+          return;
+        }
+        if (isTextEditingTarget(event.target)) {
           return;
         }
         var file = getClipboardImageFile(event.clipboardData);
         if (!file) {
-          return;
-        }
-        if (annotationId) {
-          pasteReferenceIntoAnnotation(event, file, annotationId);
           return;
         }
         event.preventDefault();
@@ -2171,6 +2172,17 @@
           select = document.activeElement.closest(".annotation-ref-select");
         }
         return select && select.dataset ? select.dataset.refFor || "" : "";
+      }
+
+      function handleAnnotationReferencePaste(event, annotationId) {
+        var file = getClipboardImageFile(event.clipboardData);
+        if (!file) {
+          event.preventDefault();
+          event.stopPropagation();
+          showToast("이미지가 클립보드에 없습니다.");
+          return;
+        }
+        pasteReferenceIntoAnnotation(event, file, annotationId);
       }
 
       function pasteReferenceIntoAnnotation(event, file, annotationId) {
@@ -2957,13 +2969,14 @@
 
           var refSelect = bubble.querySelector(".annotation-ref-select");
           refSelect.addEventListener("change", function () {
+            if (refSelect.value === ADD_REFERENCE_PASTE_VALUE) {
+              beginReferencePaste(annotation.id, refSelect);
+              return;
+            }
             updateAnnotationReference(annotation.id, refSelect.value);
           });
           refSelect.addEventListener("paste", function (event) {
-            var file = getClipboardImageFile(event.clipboardData);
-            if (file) {
-              pasteReferenceIntoAnnotation(event, file, annotation.id);
-            }
+            handleAnnotationReferencePaste(event, annotation.id);
           });
 
           var textarea = bubble.querySelector("textarea");
@@ -3256,10 +3269,15 @@
         state.references.forEach(function (reference) {
           options.push("<option value=\"" + escapeHtml(reference.id) + "\"" + (reference.id === current ? " selected" : "") + ">" + escapeHtml(reference.label) + "</option>");
         });
+        options.push("<option value=\"" + ADD_REFERENCE_PASTE_VALUE + "\">+ 이미지 붙여넣기(Ctrl+V)</option>");
         return options.join("");
       }
 
       function updateAnnotationReference(id, refId) {
+        if (refId === ADD_REFERENCE_PASTE_VALUE) {
+          beginReferencePaste(id, null);
+          return;
+        }
         var annotation = getAnnotationById(id);
         if (!annotation) {
           return;
@@ -3270,6 +3288,19 @@
         updateReferencePreview();
         updatePromptPreview();
         updateButtons();
+      }
+
+      function beginReferencePaste(id, select) {
+        var annotation = getAnnotationById(id);
+        if (!annotation) {
+          return;
+        }
+        var refSelect = select || bubbleLayer.querySelector("[data-ref-for=\"" + cssEscape(id) + "\"]");
+        if (refSelect) {
+          refSelect.value = annotation.refId || "";
+          refSelect.focus({ preventScroll: true });
+        }
+        showToast("참고 드롭다운에 포커스를 둔 상태에서 Ctrl+V로 이미지를 붙여넣으세요.");
       }
 
       function syncReferenceSelects(id, value) {
@@ -3498,8 +3529,11 @@
         selectAnnotation(annotation.id);
         state.moving = {
           id: annotation.id,
+          start: point,
           last: point,
           snapshot: createHistorySnapshot(),
+          totalDx: 0,
+          totalDy: 0,
           moved: false
         };
         canvas.classList.add("is-moving");
@@ -3519,7 +3553,9 @@
           x: state.moving.last.x + delta.dx,
           y: state.moving.last.y + delta.dy
         };
-        if (Math.abs(delta.dx) > 0.2 || Math.abs(delta.dy) > 0.2) {
+        state.moving.totalDx += delta.dx;
+        state.moving.totalDy += delta.dy;
+        if (Math.abs(state.moving.totalDx) > 3 || Math.abs(state.moving.totalDy) > 3) {
           state.moving.moved = true;
           invalidateGeneratedOutput();
           redraw();
@@ -3547,6 +3583,12 @@
           updatePromptPreview();
           updateButtons();
           updateCanvasStatus();
+        } else if (moving) {
+          if (moving.snapshot) {
+            state.annotations = cloneAnnotations(moving.snapshot.annotations || []);
+            state.nextNumber = moving.snapshot.nextNumber || state.nextNumber;
+          }
+          openBubbleEdit(moving.id);
         }
       }
 
@@ -3616,6 +3658,9 @@
 
       function hitTestAnnotation(annotation, point) {
         var tolerance = Math.max(8, Math.min(22, canvas.width * 0.01));
+        if (isPointInExpandedBox(point, getAnnotationLabelBounds(annotation), tolerance)) {
+          return true;
+        }
         if (annotation.type === "label") {
           return distance(annotation.point, point) <= Math.max(24, canvas.width * 0.022) + tolerance;
         }
@@ -3636,6 +3681,51 @@
           return isPointNearPolyline(point, points, tolerance + 4);
         }
         return false;
+      }
+
+      function getAnnotationLabelBounds(annotation) {
+        if (!annotation) {
+          return { x: 0, y: 0, width: 0, height: 0 };
+        }
+        if (annotation.type === "label") {
+          return getNumberPinTagBounds(annotation.point, annotation.label);
+        }
+        return getCanvasLabelBounds(annotation);
+      }
+
+      function getCanvasLabelBounds(annotation) {
+        var box = getAnnotationBounds(annotation);
+        var fontSize = Math.max(15, Math.min(28, canvas.width * 0.018));
+        var padX = Math.max(8, fontSize * 0.55);
+        var padY = Math.max(5, fontSize * 0.35);
+        var width = measureCanvasLabelWidth(annotation.label, fontSize) + padX * 2;
+        var height = fontSize + padY * 2;
+        return {
+          x: clamp(box.x, 0, Math.max(0, canvas.width - width)),
+          y: clamp(box.y - height - 7, 0, Math.max(0, canvas.height - height)),
+          width: width,
+          height: height
+        };
+      }
+
+      function getNumberPinTagBounds(point, label) {
+        var fontSize = Math.max(15, Math.min(28, canvas.width * 0.018));
+        var radius = fontSize * 1.25;
+        var width = measureCanvasLabelWidth(label, Math.floor(fontSize * 0.68)) + 18;
+        return {
+          x: clamp(point.x + radius + 5, 0, canvas.width - 110),
+          y: clamp(point.y - radius, 0, canvas.height - 28),
+          width: width,
+          height: 27
+        };
+      }
+
+      function measureCanvasLabelWidth(label, fontSize) {
+        ctx.save();
+        ctx.font = "800 " + fontSize + "px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+        var width = ctx.measureText(label || "").width;
+        ctx.restore();
+        return width;
       }
 
       function isPointInExpandedBox(point, box, tolerance) {
