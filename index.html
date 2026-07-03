@@ -285,6 +285,12 @@
       box-shadow: 0 0 0 4px rgba(59, 91, 219, 0.10);
     }
 
+    .drop-zone:focus-visible {
+      border-color: var(--focus);
+      box-shadow: 0 0 0 4px rgba(59, 91, 219, 0.12);
+      outline: none;
+    }
+
     .reference-zone {
       margin-top: 12px;
     }
@@ -1177,7 +1183,7 @@
         </div>
         <div class="panel-body">
           <input class="file-input" id="imageInput" type="file" accept="image/png,image/jpeg,image/webp">
-          <div class="drop-zone" id="dropZone">
+          <div class="drop-zone" id="dropZone" tabindex="0">
             <p class="drop-title">원본 이미지</p>
             <label class="btn dark" for="imageInput">
               <i class="ti ti-photo-plus" aria-hidden="true"></i>
@@ -1188,13 +1194,13 @@
           </div>
 
           <input class="file-input" id="referenceInput" type="file" accept="image/png,image/jpeg,image/webp" multiple>
-          <div class="drop-zone reference-zone" id="referenceDropZone">
+          <div class="drop-zone reference-zone" id="referenceDropZone" tabindex="0">
             <p class="drop-title">레퍼런스 이미지(선택, 최대 5장)</p>
             <label class="btn" for="referenceInput">
               <i class="ti ti-photo-plus" aria-hidden="true"></i>
               파일 선택
             </label>
-            <div class="small-note">각 마킹에 연결할 스타일/재질/색상 참고</div>
+            <div class="small-note">각 마킹에 연결할 스타일/재질/색상 참고 · 클릭 후 Ctrl+V 가능</div>
             <div class="reference-list" id="referenceUploadPreview" hidden>
               <img id="referenceUploadThumb" alt="레퍼런스 이미지 미리보기" hidden>
               <button class="mini-btn" id="removeReferenceBtn" type="button" title="레퍼런스 제거" aria-label="레퍼런스 제거" hidden>
@@ -1531,6 +1537,10 @@
         referenceDropZone.addEventListener("dragover", handleReferenceDragOver);
         referenceDropZone.addEventListener("dragleave", handleReferenceDragLeave);
         referenceDropZone.addEventListener("drop", handleReferenceDrop);
+        referenceDropZone.addEventListener("paste", handleReferencePaste);
+        referenceDropZone.addEventListener("click", function () {
+          referenceDropZone.focus({ preventScroll: true });
+        });
         removeReferenceBtn.addEventListener("click", function () {
           if (state.references[0]) {
             removeReferenceImage(state.references[0].id);
@@ -1724,6 +1734,22 @@
         loadReferenceFiles(files);
       }
 
+      function handleReferencePaste(event) {
+        if (isTextEditingTarget(event.target) && event.target !== referenceDropZone) {
+          return;
+        }
+        var file = getClipboardImageFile(event.clipboardData);
+        if (!file) {
+          return;
+        }
+        event.preventDefault();
+        event.stopPropagation();
+        state.dragDepth = 0;
+        hideDropTarget();
+        referenceDropZone.classList.remove("is-dragging");
+        loadReferenceFiles([file]);
+      }
+
       function handleDocumentPaste(event) {
         if (isTextEditingTarget(event.target)) {
           return;
@@ -1735,7 +1761,17 @@
         event.preventDefault();
         state.dragDepth = 0;
         hideDropTarget();
+        if (shouldPasteIntoReference(event)) {
+          loadReferenceFiles([file]);
+          return;
+        }
         loadImageFile(file);
+      }
+
+      function shouldPasteIntoReference(event) {
+        var activeElement = document.activeElement;
+        return referenceDropZone.contains(event.target) ||
+          (activeElement && referenceDropZone.contains(activeElement));
       }
 
       function showDropTarget() {
