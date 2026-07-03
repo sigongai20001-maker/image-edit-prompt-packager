@@ -185,6 +185,11 @@
       color: var(--danger);
     }
 
+    .btn.subtle {
+      color: var(--muted);
+      background: var(--surface-raised);
+    }
+
     .icon-btn,
     .tool-btn {
       width: 38px;
@@ -354,6 +359,85 @@
       gap: 6px;
     }
 
+    .history-row .btn {
+      flex: 1 1 0;
+      min-width: 0;
+    }
+
+    .clear-all-btn {
+      width: 100%;
+      justify-content: center;
+    }
+
+    .preset-panel {
+      padding-top: 2px;
+    }
+
+    .preset-list {
+      display: grid;
+      gap: 6px;
+      max-height: 160px;
+      overflow: auto;
+      padding-right: 2px;
+    }
+
+    .preset-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 6px;
+      align-items: center;
+      padding: 7px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--surface-raised);
+    }
+
+    .preset-name {
+      min-width: 0;
+      border: 0;
+      padding: 0;
+      background: transparent;
+      color: var(--text);
+      font-size: 12px;
+      font-weight: 680;
+      line-height: 1.35;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .preset-name:hover {
+      color: var(--primary);
+    }
+
+    .preset-actions {
+      display: inline-flex;
+      gap: 4px;
+    }
+
+    .preset-form {
+      display: grid;
+      gap: 7px;
+    }
+
+    .preset-input {
+      width: 100%;
+      min-height: 54px;
+      resize: vertical;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 8px;
+      color: var(--text);
+      background: #ffffff;
+      outline: none;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .preset-input:focus {
+      border-color: var(--focus);
+      box-shadow: 0 0 0 3px rgba(59, 91, 219, 0.12);
+    }
+
     .swatch {
       width: 12px;
       height: 12px;
@@ -450,6 +534,10 @@
       touch-action: none;
     }
 
+    canvas.is-moving {
+      cursor: grabbing;
+    }
+
     canvas.is-disabled {
       cursor: default;
     }
@@ -462,7 +550,7 @@
 
     .edit-bubble {
       position: absolute;
-      width: min(280px, 46vw);
+      width: min(330px, 52vw);
       min-height: 106px;
       border: 2px solid currentColor;
       border-radius: var(--radius);
@@ -525,6 +613,67 @@
 
     .bubble-remove:hover {
       background: rgba(255, 255, 255, 0.26);
+    }
+
+    .bubble-controls {
+      display: grid;
+      gap: 7px;
+      padding: 8px 9px 0;
+    }
+
+    .bubble-type-row {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      gap: 7px;
+      align-items: center;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 720;
+    }
+
+    .edit-type-select,
+    .annotation-type-select {
+      width: 100%;
+      min-height: 30px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0 8px;
+      background: #ffffff;
+      color: var(--text);
+      font-size: 12px;
+      font-weight: 680;
+      outline: none;
+    }
+
+    .edit-type-select:focus,
+    .annotation-type-select:focus {
+      border-color: var(--focus);
+      box-shadow: 0 0 0 3px rgba(59, 91, 219, 0.12);
+    }
+
+    .preset-quick-list {
+      display: flex;
+      gap: 5px;
+      flex-wrap: wrap;
+    }
+
+    .preset-chip {
+      min-height: 27px;
+      max-width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 0 8px;
+      background: var(--surface-raised);
+      color: var(--text);
+      font-size: 11.5px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .preset-chip:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+      background: var(--primary-soft);
     }
 
     .bubble-textarea {
@@ -669,6 +818,7 @@
       min-height: 42px;
       padding: 8px;
       border-bottom: 0;
+      flex-wrap: wrap;
     }
 
     .tool-panel .annotation-id {
@@ -687,6 +837,12 @@
 
     .tool-panel .annotation-actions {
       flex: 0 0 auto;
+    }
+
+    .tool-panel .annotation-type-select {
+      flex: 1 0 100%;
+      min-height: 28px;
+      margin-top: 2px;
     }
 
     .tool-panel .mini-btn {
@@ -1070,15 +1226,41 @@
 
           <div class="tool-group">
             <div class="tool-label">편집</div>
-            <div class="button-row">
+            <div class="button-row history-row">
               <button class="btn" id="undoBtn" type="button" disabled>
                 <i class="ti ti-arrow-back-up" aria-hidden="true"></i>
                 실행취소
               </button>
-              <button class="btn danger" id="clearBtn" type="button" disabled>
+              <button class="btn" id="redoBtn" type="button" disabled>
+                <i class="ti ti-arrow-forward-up" aria-hidden="true"></i>
+                다시실행
+              </button>
+            </div>
+            <div class="button-row">
+              <button class="btn danger clear-all-btn" id="clearBtn" type="button" disabled>
                 <i class="ti ti-trash" aria-hidden="true"></i>
                 모두 지우기
               </button>
+            </div>
+          </div>
+
+          <div class="tool-group preset-panel">
+            <div class="tool-group-head">
+              <div class="tool-label">프리셋</div>
+              <span class="small-note">선택 마킹에 삽입</span>
+            </div>
+            <div class="preset-list" id="presetList"></div>
+            <div class="preset-form">
+              <textarea class="preset-input" id="presetInput" rows="2" placeholder="자주 쓰는 지시문 입력" spellcheck="false"></textarea>
+              <div class="button-row">
+                <button class="btn" id="savePresetBtn" type="button">
+                  <i class="ti ti-plus" aria-hidden="true"></i>
+                  추가
+                </button>
+                <button class="btn subtle" id="cancelPresetEditBtn" type="button" hidden>
+                  취소
+                </button>
+              </div>
             </div>
           </div>
 
@@ -1240,6 +1422,26 @@
         label: "번호 라벨"
       };
 
+      var DEFAULT_EDIT_TYPE = "text";
+      var EDIT_TYPES = [
+        { value: "text", label: "문구수정", tag: "TEXT EDIT" },
+        { value: "material", label: "재질변경", tag: "MATERIAL" },
+        { value: "color", label: "컬러변경", tag: "COLOR" },
+        { value: "add", label: "요소추가", tag: "ADD" },
+        { value: "remove", label: "요소삭제", tag: "REMOVE" }
+      ];
+
+      var PRESET_STORAGE_KEY = "imageEditPromptPackager.presets.v1";
+      var DEFAULT_PRESETS = [
+        "간판 문구를 [내용]으로 수정 (영문으로 렌더)",
+        "재질을 [금속/목재/석재]로 변경",
+        "컬러를 [색상]으로 변경",
+        "이 영역에 그래픽/로고 삽입",
+        "이 영역의 오브젝트 삭제",
+        "전통 패턴/문양 적용"
+      ];
+      var HISTORY_LIMIT = 80;
+
       var state = {
         image: null,
         originalFile: null,
@@ -1249,9 +1451,14 @@
         activeTool: "rect",
         annotations: [],
         drawing: null,
+        moving: null,
         selectedId: "",
         editingId: "",
         nextNumber: 1,
+        history: [],
+        redoStack: [],
+        presets: [],
+        editingPresetIndex: -1,
         generated: false,
         outputVersion: 0,
         promptText: "",
@@ -1279,8 +1486,13 @@
 
       var generateBtn = document.getElementById("generateBtn");
       var undoBtn = document.getElementById("undoBtn");
+      var redoBtn = document.getElementById("redoBtn");
       var clearBtn = document.getElementById("clearBtn");
       var newWorkBtn = document.getElementById("newWorkBtn");
+      var presetList = document.getElementById("presetList");
+      var presetInput = document.getElementById("presetInput");
+      var savePresetBtn = document.getElementById("savePresetBtn");
+      var cancelPresetEditBtn = document.getElementById("cancelPresetEditBtn");
       var copyOriginalBtn = document.getElementById("copyOriginalBtn");
       var downloadOriginalBtn = document.getElementById("downloadOriginalBtn");
       var copyMarkedBtn = document.getElementById("copyMarkedBtn");
@@ -1299,8 +1511,10 @@
       initialize();
 
       function initialize() {
+        state.presets = loadPresets();
         renderColorStrip();
         renderAnnotationList();
+        renderPresetList();
         updateButtons();
         updatePromptPreview();
 
@@ -1327,15 +1541,24 @@
         canvas.addEventListener("pointerup", finishDrawing);
         canvas.addEventListener("pointercancel", cancelDrawing);
         canvas.addEventListener("pointerleave", function (event) {
-          if (state.drawing && event.buttons === 0) {
+          if ((state.drawing || state.moving) && event.buttons === 0) {
             finishDrawing(event);
           }
         });
 
         generateBtn.addEventListener("click", generatePackage);
         undoBtn.addEventListener("click", undoLast);
+        redoBtn.addEventListener("click", redoLast);
         clearBtn.addEventListener("click", clearAnnotations);
         newWorkBtn.addEventListener("click", resetWork);
+        savePresetBtn.addEventListener("click", savePresetFromInput);
+        cancelPresetEditBtn.addEventListener("click", cancelPresetEdit);
+        presetInput.addEventListener("keydown", function (event) {
+          if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
+            event.preventDefault();
+            savePresetFromInput();
+          }
+        });
 
         copyOriginalBtn.addEventListener("click", function () {
           copyImageBlob(getOriginalBlob, "원본 이미지가 복사되었습니다.");
@@ -1364,6 +1587,7 @@
         });
 
         window.addEventListener("resize", renderBubbles);
+        document.addEventListener("keydown", handleKeyboardShortcuts);
         if (window.ResizeObserver) {
           new ResizeObserver(renderBubbles).observe(canvas);
         }
@@ -1473,6 +1697,7 @@
         state.markedPreviewUrl = "";
         state.annotations = [];
         state.drawing = null;
+        clearHistory();
         state.selectedId = "";
         state.editingId = "";
         state.nextNumber = 1;
@@ -1553,6 +1778,11 @@
         }
         event.preventDefault();
         var point = getCanvasPoint(event);
+        var hitAnnotation = findAnnotationAt(point);
+        if (hitAnnotation) {
+          beginAnnotationMove(event, hitAnnotation, point);
+          return;
+        }
         var marker = makeMarkerMeta();
 
         if (state.activeTool === "label") {
@@ -1563,6 +1793,7 @@
             number: marker.number,
             colorKey: marker.color.key,
             color: marker.color.hex,
+            editType: DEFAULT_EDIT_TYPE,
             point: point,
             text: "",
             bubble: defaultBubblePosition({ type: "label", point: point })
@@ -1578,6 +1809,7 @@
           number: marker.number,
           colorKey: marker.color.key,
           color: marker.color.hex,
+          editType: DEFAULT_EDIT_TYPE,
           start: point,
           end: point,
           points: [point],
@@ -1588,6 +1820,10 @@
       }
 
       function continueDrawing(event) {
+        if (state.moving && state.image) {
+          continueAnnotationMove(event);
+          return;
+        }
         if (!state.drawing || !state.image) {
           return;
         }
@@ -1604,6 +1840,10 @@
       }
 
       function finishDrawing(event) {
+        if (state.moving && state.image) {
+          finishAnnotationMove(event);
+          return;
+        }
         if (!state.drawing || !state.image) {
           return;
         }
@@ -1620,6 +1860,10 @@
       }
 
       function cancelDrawing() {
+        if (state.moving) {
+          restoreMoveSnapshot();
+          return;
+        }
         if (!state.drawing) {
           return;
         }
@@ -1638,6 +1882,7 @@
           number: drawing.number,
           colorKey: drawing.colorKey,
           color: drawing.color,
+          editType: drawing.editType || DEFAULT_EDIT_TYPE,
           text: ""
         };
 
@@ -1652,6 +1897,7 @@
       }
 
       function addAnnotation(annotation) {
+        recordHistorySnapshot();
         state.annotations.push(annotation);
         state.selectedId = annotation.id;
         state.editingId = annotation.id;
@@ -1889,8 +2135,23 @@
             "<span class=\"bubble-code\"><i class=\"tiny-dot\"></i>" + escapeHtml(annotation.label) + "</span>",
             "<button class=\"bubble-remove\" type=\"button\" title=\"삭제\" aria-label=\"삭제\"><i class=\"ti ti-x\" aria-hidden=\"true\"></i></button>",
             "</div>",
+            "<div class=\"bubble-controls\">",
+            "<label class=\"bubble-type-row\"><span>유형</span><select class=\"edit-type-select\" data-edit-type-for=\"" + escapeHtml(annotation.id) + "\">" + buildEditTypeOptions(annotation) + "</select></label>",
+            "<div class=\"preset-quick-list\">" + buildPresetChips() + "</div>",
+            "</div>",
             "<textarea class=\"bubble-textarea\" placeholder=\"수정 내용 입력\" spellcheck=\"false\"></textarea>"
           ].join("");
+
+          var typeSelect = bubble.querySelector(".edit-type-select");
+          typeSelect.addEventListener("change", function () {
+            updateAnnotationEditType(annotation.id, typeSelect.value);
+          });
+
+          bubble.querySelectorAll("[data-preset-index]").forEach(function (button) {
+            button.addEventListener("click", function () {
+              insertPresetIntoAnnotation(annotation.id, Number(button.dataset.presetIndex));
+            });
+          });
 
           var textarea = bubble.querySelector("textarea");
           textarea.value = annotation.text || "";
@@ -1940,6 +2201,8 @@
         event.preventDefault();
         event.stopPropagation();
         selectAnnotation(annotation.id);
+        var snapshot = createHistorySnapshot();
+        var moved = false;
         var start = {
           clientX: event.clientX,
           clientY: event.clientY,
@@ -1956,6 +2219,9 @@
           annotation.bubble.y = clamp(nextY, 0, canvas.height - 24);
           bubble.style.left = Math.round(annotation.bubble.x * scaleX) + "px";
           bubble.style.top = Math.round(annotation.bubble.y * scaleY) + "px";
+          if (Math.abs(annotation.bubble.x - start.x) > 0.5 || Math.abs(annotation.bubble.y - start.y) > 0.5) {
+            moved = true;
+          }
           invalidateGeneratedOutput();
           updateButtons();
         }
@@ -1965,6 +2231,9 @@
           bubble.removeEventListener("pointermove", move);
           bubble.removeEventListener("pointerup", end);
           bubble.removeEventListener("pointercancel", end);
+          if (moved) {
+            recordHistorySnapshot(snapshot);
+          }
           updatePromptPreview();
         }
 
@@ -1998,9 +2267,15 @@
             "<button class=\"mini-btn\" data-action=\"edit\" type=\"button\" title=\"이미지 위에서 수정\" aria-label=\"이미지 위에서 수정\"><i class=\"ti ti-pencil\" aria-hidden=\"true\"></i></button>",
             "<button class=\"mini-btn\" data-action=\"remove\" type=\"button\" title=\"삭제\" aria-label=\"삭제\"><i class=\"ti ti-trash\" aria-hidden=\"true\"></i></button>",
             "</span>",
+            "<select class=\"annotation-type-select\" data-edit-type-for=\"" + escapeHtml(annotation.id) + "\" title=\"편집 유형\" aria-label=\"" + escapeHtml(annotation.label) + " 편집 유형\">" + buildEditTypeOptions(annotation) + "</select>",
             "</div>",
             "<textarea class=\"annotation-text\" placeholder=\"수정 내용 입력\" spellcheck=\"false\"></textarea>"
           ].join("");
+
+          var typeSelect = card.querySelector(".annotation-type-select");
+          typeSelect.addEventListener("change", function () {
+            updateAnnotationEditType(annotation.id, typeSelect.value);
+          });
 
           var textarea = card.querySelector("textarea");
           textarea.value = annotation.text || "";
@@ -2025,6 +2300,200 @@
           });
           annotationList.appendChild(card);
         });
+      }
+
+      function buildEditTypeOptions(annotation) {
+        var current = getAnnotationEditType(annotation);
+        return EDIT_TYPES.map(function (type) {
+          return "<option value=\"" + escapeHtml(type.value) + "\"" + (type.value === current ? " selected" : "") + ">" + escapeHtml(type.label) + "</option>";
+        }).join("");
+      }
+
+      function getAnnotationEditType(annotation) {
+        var value = annotation && annotation.editType ? annotation.editType : DEFAULT_EDIT_TYPE;
+        return EDIT_TYPES.some(function (type) { return type.value === value; }) ? value : DEFAULT_EDIT_TYPE;
+      }
+
+      function getEditTypeTag(annotation) {
+        var value = getAnnotationEditType(annotation);
+        var match = EDIT_TYPES.find(function (type) { return type.value === value; });
+        return match ? match.tag : "";
+      }
+
+      function formatPromptLabel(annotation) {
+        var tag = getEditTypeTag(annotation);
+        return annotation.label + (tag ? " [" + tag + "]" : "");
+      }
+
+      function updateAnnotationEditType(id, value) {
+        var annotation = getAnnotationById(id);
+        if (!annotation) {
+          return;
+        }
+        annotation.editType = EDIT_TYPES.some(function (type) { return type.value === value; }) ? value : DEFAULT_EDIT_TYPE;
+        invalidateGeneratedOutput();
+        syncEditTypeSelects(id, annotation.editType);
+        updatePromptPreview();
+        updateButtons();
+      }
+
+      function syncEditTypeSelects(id, value) {
+        document.querySelectorAll("[data-edit-type-for=\"" + cssEscape(id) + "\"]").forEach(function (select) {
+          if (select.value !== value) {
+            select.value = value;
+          }
+        });
+      }
+
+      function buildPresetChips() {
+        if (!state.presets.length) {
+          return "<span class=\"small-note\">저장된 프리셋 없음</span>";
+        }
+        return state.presets.map(function (preset, index) {
+          return "<button class=\"preset-chip\" type=\"button\" data-preset-index=\"" + index + "\" title=\"" + escapeHtml(preset) + "\">" + escapeHtml(shortPresetLabel(preset)) + "</button>";
+        }).join("");
+      }
+
+      function renderPresetList() {
+        presetList.innerHTML = "";
+        if (!state.presets.length) {
+          var empty = document.createElement("p");
+          empty.className = "no-items";
+          empty.textContent = "프리셋이 없습니다.";
+          presetList.appendChild(empty);
+          return;
+        }
+
+        state.presets.forEach(function (preset, index) {
+          var row = document.createElement("div");
+          row.className = "preset-row";
+          row.innerHTML = [
+            "<button class=\"preset-name\" type=\"button\" title=\"" + escapeHtml(preset) + "\">" + escapeHtml(preset) + "</button>",
+            "<span class=\"preset-actions\">",
+            "<button class=\"mini-btn\" data-action=\"edit-preset\" type=\"button\" title=\"수정\" aria-label=\"프리셋 수정\"><i class=\"ti ti-pencil\" aria-hidden=\"true\"></i></button>",
+            "<button class=\"mini-btn\" data-action=\"remove-preset\" type=\"button\" title=\"삭제\" aria-label=\"프리셋 삭제\"><i class=\"ti ti-trash\" aria-hidden=\"true\"></i></button>",
+            "</span>"
+          ].join("");
+          row.querySelector(".preset-name").addEventListener("click", function () {
+            insertPresetIntoSelected(index);
+          });
+          row.querySelector("[data-action=\"edit-preset\"]").addEventListener("click", function () {
+            beginPresetEdit(index);
+          });
+          row.querySelector("[data-action=\"remove-preset\"]").addEventListener("click", function () {
+            removePreset(index);
+          });
+          presetList.appendChild(row);
+        });
+      }
+
+      function loadPresets() {
+        try {
+          var raw = localStorage.getItem(PRESET_STORAGE_KEY);
+          if (raw) {
+            var parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) {
+              var values = parsed.map(function (item) { return String(item || "").trim(); }).filter(Boolean);
+              if (values.length) {
+                return values;
+              }
+            }
+          }
+        } catch (error) {
+          return DEFAULT_PRESETS.slice();
+        }
+        savePresets(DEFAULT_PRESETS);
+        return DEFAULT_PRESETS.slice();
+      }
+
+      function savePresets(presets) {
+        try {
+          localStorage.setItem(PRESET_STORAGE_KEY, JSON.stringify(presets));
+        } catch (error) {
+          showToast("프리셋 저장 공간을 사용할 수 없습니다.");
+        }
+      }
+
+      function savePresetFromInput() {
+        var value = cleanInstruction(presetInput.value);
+        if (!value) {
+          showToast("프리셋 문구를 입력하세요.");
+          return;
+        }
+        if (state.editingPresetIndex >= 0) {
+          state.presets[state.editingPresetIndex] = value;
+          showToast("프리셋이 수정되었습니다.");
+        } else {
+          state.presets.push(value);
+          showToast("프리셋이 추가되었습니다.");
+        }
+        savePresets(state.presets);
+        cancelPresetEdit();
+        renderPresetList();
+        renderBubbles();
+      }
+
+      function beginPresetEdit(index) {
+        if (index < 0 || index >= state.presets.length) {
+          return;
+        }
+        state.editingPresetIndex = index;
+        presetInput.value = state.presets[index];
+        savePresetBtn.innerHTML = "<i class=\"ti ti-check\" aria-hidden=\"true\"></i>수정";
+        cancelPresetEditBtn.hidden = false;
+        presetInput.focus();
+      }
+
+      function cancelPresetEdit() {
+        state.editingPresetIndex = -1;
+        presetInput.value = "";
+        savePresetBtn.innerHTML = "<i class=\"ti ti-plus\" aria-hidden=\"true\"></i>추가";
+        cancelPresetEditBtn.hidden = true;
+      }
+
+      function removePreset(index) {
+        if (index < 0 || index >= state.presets.length) {
+          return;
+        }
+        state.presets.splice(index, 1);
+        if (state.editingPresetIndex === index) {
+          cancelPresetEdit();
+        } else if (state.editingPresetIndex > index) {
+          state.editingPresetIndex -= 1;
+        }
+        savePresets(state.presets);
+        renderPresetList();
+        renderBubbles();
+        showToast("프리셋이 삭제되었습니다.");
+      }
+
+      function insertPresetIntoSelected(index) {
+        if (!state.selectedId) {
+          showToast("먼저 마킹을 선택하세요.");
+          return;
+        }
+        insertPresetIntoAnnotation(state.selectedId, index);
+      }
+
+      function insertPresetIntoAnnotation(id, index) {
+        var annotation = getAnnotationById(id);
+        var preset = state.presets[index];
+        if (!annotation || !preset) {
+          return;
+        }
+        annotation.text = annotation.text ? annotation.text.replace(/\s+$/g, "") + "\n" + preset : preset;
+        state.selectedId = annotation.id;
+        syncTextareas(annotation.id, annotation.text);
+        invalidateGeneratedOutput();
+        updatePromptPreview();
+        updateButtons();
+        renderAnnotationList();
+        showToast("프리셋이 삽입되었습니다.");
+      }
+
+      function shortPresetLabel(value) {
+        var text = String(value || "").trim();
+        return text.length > 22 ? text.slice(0, 21) + "…" : text;
       }
 
       function syncTextareas(id, value) {
@@ -2089,6 +2558,7 @@
         if (index === -1) {
           return;
         }
+        recordHistorySnapshot();
         state.annotations.splice(index, 1);
         if (state.selectedId === id) {
           state.selectedId = state.annotations[index] ? state.annotations[index].id : (state.annotations[index - 1] ? state.annotations[index - 1].id : "");
@@ -2106,11 +2576,72 @@
       }
 
       function undoLast() {
+        if (!state.history.length) {
+          return;
+        }
+        state.redoStack.push(createHistorySnapshot());
+        restoreHistorySnapshot(state.history.pop());
+        showToast("실행취소되었습니다.");
+      }
+
+      function redoLast() {
+        if (!state.redoStack.length) {
+          return;
+        }
+        state.history.push(createHistorySnapshot());
+        restoreHistorySnapshot(state.redoStack.pop());
+        showToast("다시실행되었습니다.");
+      }
+
+      function clearAnnotations() {
         if (!state.annotations.length) {
           return;
         }
-        state.annotations.pop();
-        state.selectedId = state.annotations.length ? state.annotations[state.annotations.length - 1].id : "";
+        recordHistorySnapshot();
+        state.annotations = [];
+        state.selectedId = "";
+        state.editingId = "";
+        invalidateGeneratedOutput();
+        redraw();
+        renderBubbles();
+        renderAnnotationList();
+        updatePromptPreview();
+        updateButtons();
+        updateCanvasStatus();
+      }
+
+      function createHistorySnapshot() {
+        return {
+          annotations: cloneAnnotations(state.annotations),
+          selectedId: state.selectedId,
+          editingId: state.editingId,
+          nextNumber: state.nextNumber
+        };
+      }
+
+      function recordHistorySnapshot(snapshot) {
+        if (!state.image) {
+          return;
+        }
+        state.history.push(snapshot || createHistorySnapshot());
+        if (state.history.length > HISTORY_LIMIT) {
+          state.history.shift();
+        }
+        state.redoStack = [];
+        updateButtons();
+      }
+
+      function restoreHistorySnapshot(snapshot) {
+        state.annotations = cloneAnnotations(snapshot.annotations || []);
+        state.selectedId = snapshot.selectedId || "";
+        state.editingId = snapshot.editingId || "";
+        state.nextNumber = Math.max(snapshot.nextNumber || 1, getNextNumberFromAnnotations());
+        state.drawing = null;
+        state.moving = null;
+        canvas.classList.remove("is-moving");
+        if (!state.annotations.some(function (annotation) { return annotation.id === state.selectedId; })) {
+          state.selectedId = state.annotations.length ? state.annotations[state.annotations.length - 1].id : "";
+        }
         if (!state.annotations.some(function (annotation) { return annotation.id === state.editingId; })) {
           state.editingId = "";
         }
@@ -2123,20 +2654,255 @@
         updateCanvasStatus();
       }
 
-      function clearAnnotations() {
-        if (!state.annotations.length) {
+      function cloneAnnotations(annotations) {
+        return JSON.parse(JSON.stringify(annotations || []));
+      }
+
+      function getNextNumberFromAnnotations() {
+        var maxNumber = state.annotations.reduce(function (max, annotation) {
+          return Math.max(max, annotation.number || 0);
+        }, 0);
+        return maxNumber + 1;
+      }
+
+      function clearHistory() {
+        state.history = [];
+        state.redoStack = [];
+        state.moving = null;
+        canvas.classList.remove("is-moving");
+      }
+
+      function handleKeyboardShortcuts(event) {
+        if (!(event.ctrlKey || event.metaKey) || event.altKey || isTextEditingTarget(event.target)) {
           return;
         }
-        state.annotations = [];
-        state.selectedId = "";
-        state.editingId = "";
-        invalidateGeneratedOutput();
+        var key = String(event.key || "").toLowerCase();
+        if (key === "z" && !event.shiftKey) {
+          event.preventDefault();
+          undoLast();
+        }
+        if (key === "y" || (key === "z" && event.shiftKey)) {
+          event.preventDefault();
+          redoLast();
+        }
+      }
+
+      function isTextEditingTarget(target) {
+        if (!target) {
+          return false;
+        }
+        var tagName = target.tagName ? target.tagName.toLowerCase() : "";
+        return tagName === "textarea" || tagName === "input" || tagName === "select" || target.isContentEditable;
+      }
+
+      function getAnnotationById(id) {
+        return state.annotations.find(function (annotation) {
+          return annotation.id === id;
+        }) || null;
+      }
+
+      function beginAnnotationMove(event, annotation, point) {
+        event.preventDefault();
+        selectAnnotation(annotation.id);
+        state.moving = {
+          id: annotation.id,
+          last: point,
+          snapshot: createHistorySnapshot(),
+          moved: false
+        };
+        canvas.classList.add("is-moving");
+        canvas.setPointerCapture(event.pointerId);
+      }
+
+      function continueAnnotationMove(event) {
+        event.preventDefault();
+        var annotation = getAnnotationById(state.moving.id);
+        if (!annotation) {
+          cancelDrawing();
+          return;
+        }
+        var point = getCanvasPoint(event);
+        var delta = translateAnnotation(annotation, point.x - state.moving.last.x, point.y - state.moving.last.y);
+        state.moving.last = {
+          x: state.moving.last.x + delta.dx,
+          y: state.moving.last.y + delta.dy
+        };
+        if (Math.abs(delta.dx) > 0.2 || Math.abs(delta.dy) > 0.2) {
+          state.moving.moved = true;
+          invalidateGeneratedOutput();
+          redraw();
+          renderBubbles();
+          updatePromptPreview();
+          updateButtons();
+        }
+      }
+
+      function finishAnnotationMove(event) {
+        event.preventDefault();
+        var moving = state.moving;
+        state.moving = null;
+        canvas.classList.remove("is-moving");
+        try {
+          canvas.releasePointerCapture(event.pointerId);
+        } catch (error) {
+          // Pointer capture may already be released by the browser.
+        }
+        if (moving && moving.moved) {
+          recordHistorySnapshot(moving.snapshot);
+          redraw();
+          renderBubbles();
+          renderAnnotationList();
+          updatePromptPreview();
+          updateButtons();
+          updateCanvasStatus();
+        }
+      }
+
+      function restoreMoveSnapshot() {
+        var snapshot = state.moving && state.moving.snapshot;
+        state.moving = null;
+        canvas.classList.remove("is-moving");
+        if (snapshot) {
+          state.annotations = cloneAnnotations(snapshot.annotations || []);
+          state.selectedId = snapshot.selectedId || "";
+          state.editingId = snapshot.editingId || "";
+          state.nextNumber = snapshot.nextNumber || getNextNumberFromAnnotations();
+        }
         redraw();
         renderBubbles();
         renderAnnotationList();
         updatePromptPreview();
         updateButtons();
         updateCanvasStatus();
+      }
+
+      function translateAnnotation(annotation, dx, dy) {
+        var box = getAnnotationBounds(annotation);
+        var minDx = -box.x;
+        var maxDx = canvas.width - (box.x + box.width);
+        var minDy = -box.y;
+        var maxDy = canvas.height - (box.y + box.height);
+        var actualDx = minDx <= maxDx ? clamp(dx, minDx, maxDx) : 0;
+        var actualDy = minDy <= maxDy ? clamp(dy, minDy, maxDy) : 0;
+        if (!actualDx && !actualDy) {
+          return { dx: 0, dy: 0 };
+        }
+        if (annotation.type === "label") {
+          annotation.point = translatePoint(annotation.point, actualDx, actualDy);
+        } else if (annotation.type === "freehand") {
+          annotation.points = (annotation.points || []).map(function (point) {
+            return translatePoint(point, actualDx, actualDy);
+          });
+        } else {
+          annotation.start = translatePoint(annotation.start, actualDx, actualDy);
+          annotation.end = translatePoint(annotation.end, actualDx, actualDy);
+        }
+        if (annotation.bubble) {
+          annotation.bubble = {
+            x: clamp(annotation.bubble.x + actualDx, 0, Math.max(0, canvas.width - 24)),
+            y: clamp(annotation.bubble.y + actualDy, 0, Math.max(0, canvas.height - 24))
+          };
+        }
+        return { dx: actualDx, dy: actualDy };
+      }
+
+      function translatePoint(point, dx, dy) {
+        return {
+          x: clamp((point ? point.x : 0) + dx, 0, canvas.width),
+          y: clamp((point ? point.y : 0) + dy, 0, canvas.height)
+        };
+      }
+
+      function findAnnotationAt(point) {
+        for (var i = state.annotations.length - 1; i >= 0; i -= 1) {
+          if (hitTestAnnotation(state.annotations[i], point)) {
+            return state.annotations[i];
+          }
+        }
+        return null;
+      }
+
+      function hitTestAnnotation(annotation, point) {
+        var tolerance = Math.max(8, Math.min(22, canvas.width * 0.01));
+        if (annotation.type === "label") {
+          return distance(annotation.point, point) <= Math.max(24, canvas.width * 0.022) + tolerance;
+        }
+        if (annotation.type === "rect") {
+          return isPointInExpandedBox(point, getAnnotationBounds(annotation), tolerance);
+        }
+        if (annotation.type === "circle") {
+          return isPointInOval(annotation, point, tolerance);
+        }
+        if (annotation.type === "arrow") {
+          return pointToSegmentDistance(point, annotation.start, annotation.end) <= tolerance + 4;
+        }
+        if (annotation.type === "freehand") {
+          var points = annotation.points || [];
+          if (isClosedFreehand(points, tolerance) && isPointInPolygon(point, points)) {
+            return true;
+          }
+          return isPointNearPolyline(point, points, tolerance + 4);
+        }
+        return false;
+      }
+
+      function isPointInExpandedBox(point, box, tolerance) {
+        return point.x >= box.x - tolerance &&
+          point.x <= box.x + box.width + tolerance &&
+          point.y >= box.y - tolerance &&
+          point.y <= box.y + box.height + tolerance;
+      }
+
+      function isPointInOval(annotation, point, tolerance) {
+        var box = getAnnotationBounds(annotation);
+        var rx = Math.max(1, box.width / 2 + tolerance);
+        var ry = Math.max(1, box.height / 2 + tolerance);
+        var cx = box.x + box.width / 2;
+        var cy = box.y + box.height / 2;
+        var normalized = Math.pow((point.x - cx) / rx, 2) + Math.pow((point.y - cy) / ry, 2);
+        return normalized <= 1;
+      }
+
+      function isPointNearPolyline(point, points, tolerance) {
+        for (var i = 1; i < points.length; i += 1) {
+          if (pointToSegmentDistance(point, points[i - 1], points[i]) <= tolerance) {
+            return true;
+          }
+        }
+        return false;
+      }
+
+      function pointToSegmentDistance(point, start, end) {
+        if (!start || !end) {
+          return Infinity;
+        }
+        var dx = end.x - start.x;
+        var dy = end.y - start.y;
+        var lengthSq = dx * dx + dy * dy;
+        if (!lengthSq) {
+          return distance(point, start);
+        }
+        var t = clamp(((point.x - start.x) * dx + (point.y - start.y) * dy) / lengthSq, 0, 1);
+        return distance(point, {
+          x: start.x + t * dx,
+          y: start.y + t * dy
+        });
+      }
+
+      function isPointInPolygon(point, points) {
+        var inside = false;
+        for (var i = 0, j = points.length - 1; i < points.length; j = i, i += 1) {
+          var xi = points[i].x;
+          var yi = points[i].y;
+          var xj = points[j].x;
+          var yj = points[j].y;
+          var intersects = yi > point.y !== yj > point.y &&
+            point.x < (xj - xi) * (point.y - yi) / ((yj - yi) || 1) + xi;
+          if (intersects) {
+            inside = !inside;
+          }
+        }
+        return inside;
       }
 
       function generatePackage() {
@@ -2209,7 +2975,7 @@
 
       function buildEditPrompt() {
         var entries = state.annotations.map(function (annotation) {
-          return annotation.label + ":\n" + (cleanInstruction(annotation.text) || "[No instruction entered]");
+          return formatPromptLabel(annotation) + ":\n" + (cleanInstruction(annotation.text) || "[No instruction entered]");
         }).join("\n\n");
 
         if (!entries) {
@@ -2235,7 +3001,7 @@
 
       function buildGptMessage() {
         var entries = state.annotations.map(function (annotation) {
-          return annotation.label + ":\n" + (cleanInstruction(annotation.text) || "[수정 내용 미입력]");
+          return formatPromptLabel(annotation) + ":\n" + (cleanInstruction(annotation.text) || "[수정 내용 미입력]");
         }).join("\n\n");
 
         if (!entries) {
@@ -2455,6 +3221,7 @@
         state.imageRect = { x: 0, y: 0, width: 0, height: 0 };
         state.annotations = [];
         state.drawing = null;
+        clearHistory();
         state.selectedId = "";
         state.editingId = "";
         state.nextNumber = 1;
@@ -2500,7 +3267,8 @@
         var hasAnnotations = state.annotations.length > 0;
         var hasPackage = hasImage && state.generated;
         generateBtn.disabled = !hasImage;
-        undoBtn.disabled = !hasAnnotations;
+        undoBtn.disabled = !state.history.length;
+        redoBtn.disabled = !state.redoStack.length;
         clearBtn.disabled = !hasAnnotations;
         copyOriginalBtn.disabled = !hasImage;
         downloadOriginalBtn.disabled = !hasImage;
