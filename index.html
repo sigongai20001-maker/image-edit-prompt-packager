@@ -369,6 +369,78 @@
       gap: 6px;
     }
 
+    .edit-type-list {
+      display: grid;
+      gap: 6px;
+      max-height: 154px;
+      overflow: auto;
+      padding-right: 2px;
+    }
+
+    .edit-type-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+      align-items: center;
+      padding: 7px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--surface-raised);
+    }
+
+    .edit-type-name {
+      min-width: 0;
+      display: grid;
+      gap: 2px;
+    }
+
+    .edit-type-name strong {
+      overflow: hidden;
+      color: var(--text);
+      font-size: 12px;
+      font-weight: 780;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    .edit-type-name span {
+      overflow: hidden;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 700;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    .edit-type-form {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 6px;
+    }
+
+    .edit-type-input {
+      width: 100%;
+      min-height: 32px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0 8px;
+      color: var(--text);
+      background: #ffffff;
+      outline: none;
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .edit-type-input:focus {
+      border-color: var(--focus);
+      box-shadow: 0 0 0 3px rgba(59, 91, 219, 0.12);
+    }
+
+    .edit-type-form .btn {
+      grid-column: 1 / -1;
+      justify-content: center;
+    }
+
     .history-row .btn {
       flex: 1 1 0;
       min-width: 0;
@@ -1236,6 +1308,22 @@
             <div class="color-strip" id="colorStrip"></div>
           </div>
 
+          <div class="tool-group edit-type-manager">
+            <div class="tool-group-head">
+              <div class="tool-label">유형 관리</div>
+              <span class="count-pill" id="editTypeCount">0</span>
+            </div>
+            <div class="edit-type-list" id="editTypeList"></div>
+            <div class="edit-type-form">
+              <input class="edit-type-input" id="editTypeLabelInput" type="text" placeholder="유형명">
+              <input class="edit-type-input" id="editTypeTagInput" type="text" placeholder="영문 태그">
+              <button class="btn" id="addEditTypeBtn" type="button">
+                <i class="ti ti-plus" aria-hidden="true"></i>
+                유형 등록
+              </button>
+            </div>
+          </div>
+
           <div class="tool-group">
             <div class="tool-label">편집</div>
             <div class="button-row history-row">
@@ -1422,7 +1510,7 @@
       };
 
       var DEFAULT_EDIT_TYPE = "text";
-      var EDIT_TYPES = [
+      var DEFAULT_EDIT_TYPES = [
         { value: "text", label: "문구수정", tag: "TEXT EDIT" },
         { value: "material", label: "재질변경", tag: "MATERIAL" },
         { value: "color", label: "컬러변경", tag: "COLOR" },
@@ -1432,6 +1520,7 @@
         { value: "display-media", label: "전시연출매체변경", tag: "DISPLAY MEDIA" }
       ];
 
+      var EDIT_TYPE_STORAGE_KEY = "imageEditPromptPackager.editTypes.v1";
       var HISTORY_LIMIT = 80;
       var MAX_REFERENCES = 5;
 
@@ -1449,6 +1538,7 @@
         selectedId: "",
         editingId: "",
         nextNumber: 1,
+        editTypes: [],
         history: [],
         redoStack: [],
         generated: false,
@@ -1478,6 +1568,10 @@
       var annotationList = document.getElementById("annotationList");
       var annotationCount = document.getElementById("annotationCount");
       var colorStrip = document.getElementById("colorStrip");
+      var editTypeList = document.getElementById("editTypeList");
+      var editTypeCount = document.getElementById("editTypeCount");
+      var editTypeLabelInput = document.getElementById("editTypeLabelInput");
+      var editTypeTagInput = document.getElementById("editTypeTagInput");
       var promptOutput = document.getElementById("promptOutput");
       var dropOverlay = document.getElementById("dropOverlay");
       var toast = document.getElementById("toast");
@@ -1487,6 +1581,7 @@
       var redoBtn = document.getElementById("redoBtn");
       var clearBtn = document.getElementById("clearBtn");
       var newWorkBtn = document.getElementById("newWorkBtn");
+      var addEditTypeBtn = document.getElementById("addEditTypeBtn");
       var copyOriginalBtn = document.getElementById("copyOriginalBtn");
       var downloadOriginalBtn = document.getElementById("downloadOriginalBtn");
       var copyMarkedBtn = document.getElementById("copyMarkedBtn");
@@ -1513,7 +1608,9 @@
       initialize();
 
       function initialize() {
+        state.editTypes = loadEditTypes();
         renderColorStrip();
+        renderEditTypeList();
         renderAnnotationList();
         updateReferencePreview();
         updateButtons();
@@ -1574,6 +1671,15 @@
         redoBtn.addEventListener("click", redoLast);
         clearBtn.addEventListener("click", clearAnnotations);
         newWorkBtn.addEventListener("click", resetWork);
+        addEditTypeBtn.addEventListener("click", addEditTypeFromInput);
+        [editTypeLabelInput, editTypeTagInput].forEach(function (input) {
+          input.addEventListener("keydown", function (event) {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              addEditTypeFromInput();
+            }
+          });
+        });
 
         copyOriginalBtn.addEventListener("click", function () {
           copyImageBlob(getOriginalBlob, "원본 이미지가 복사되었습니다.");
@@ -1639,6 +1745,188 @@
           chip.innerHTML = "<span><i class=\"swatch\" style=\"background:" + color.hex + "\"></i>" + color.key + "</span><strong>" + padNumber(index + 1) + "</strong>";
           colorStrip.appendChild(chip);
         });
+      }
+
+      function renderEditTypeList() {
+        var editTypes = getEditTypes();
+        editTypeList.innerHTML = "";
+        editTypeCount.textContent = editTypes.length;
+        editTypes.forEach(function (type) {
+          var row = document.createElement("div");
+          row.className = "edit-type-row";
+          row.dataset.value = type.value;
+          row.innerHTML = [
+            "<span class=\"edit-type-name\">",
+            "<strong>" + escapeHtml(type.label) + "</strong>",
+            "<span>[" + escapeHtml(type.tag) + "]</span>",
+            "</span>",
+            "<button class=\"mini-btn\" data-action=\"remove-edit-type\" type=\"button\" title=\"삭제\" aria-label=\"" + escapeHtml(type.label) + " 삭제\"" + (editTypes.length <= 1 ? " disabled" : "") + "><i class=\"ti ti-trash\" aria-hidden=\"true\"></i></button>"
+          ].join("");
+          row.querySelector("[data-action=\"remove-edit-type\"]").addEventListener("click", function () {
+            removeEditType(type.value);
+          });
+          editTypeList.appendChild(row);
+        });
+      }
+
+      function loadEditTypes() {
+        try {
+          var raw = localStorage.getItem(EDIT_TYPE_STORAGE_KEY);
+          if (raw) {
+            var saved = normalizeEditTypes(JSON.parse(raw));
+            if (saved.length) {
+              return saved;
+            }
+          }
+        } catch (error) {
+          return cloneDefaultEditTypes();
+        }
+        return cloneDefaultEditTypes();
+      }
+
+      function saveEditTypes() {
+        try {
+          localStorage.setItem(EDIT_TYPE_STORAGE_KEY, JSON.stringify(getEditTypes()));
+        } catch (error) {
+          showToast("유형 저장 공간을 사용할 수 없습니다.");
+        }
+      }
+
+      function normalizeEditTypes(types) {
+        var seen = {};
+        return (Array.isArray(types) ? types : []).map(function (type) {
+          return normalizeEditType(type);
+        }).filter(function (type) {
+          if (!type || seen[type.value]) {
+            return false;
+          }
+          seen[type.value] = true;
+          return true;
+        });
+      }
+
+      function normalizeEditType(type) {
+        var label = String(type && type.label ? type.label : "").trim().replace(/\s+/g, " ");
+        var tag = normalizeEditTypeTag(type && type.tag ? type.tag : "");
+        var value = String(type && type.value ? type.value : "").trim();
+        if (!label || !tag) {
+          return null;
+        }
+        return {
+          value: value || createEditTypeValue(label),
+          label: label,
+          tag: tag
+        };
+      }
+
+      function cloneDefaultEditTypes() {
+        return DEFAULT_EDIT_TYPES.map(function (type) {
+          return {
+            value: type.value,
+            label: type.label,
+            tag: type.tag
+          };
+        });
+      }
+
+      function getEditTypes() {
+        if (!state.editTypes.length) {
+          state.editTypes = cloneDefaultEditTypes();
+        }
+        return state.editTypes;
+      }
+
+      function getDefaultEditTypeValue() {
+        var editTypes = getEditTypes();
+        var defaultType = editTypes.find(function (type) {
+          return type.value === DEFAULT_EDIT_TYPE;
+        });
+        return (defaultType || editTypes[0]).value;
+      }
+
+      function hasEditType(value) {
+        return getEditTypes().some(function (type) {
+          return type.value === value;
+        });
+      }
+
+      function addEditTypeFromInput() {
+        var label = String(editTypeLabelInput.value || "").trim().replace(/\s+/g, " ");
+        var tag = normalizeEditTypeTag(editTypeTagInput.value);
+        if (!label) {
+          showToast("유형명을 입력하세요.");
+          editTypeLabelInput.focus();
+          return;
+        }
+        if (!tag) {
+          showToast("영문 태그를 입력하세요.");
+          editTypeTagInput.focus();
+          return;
+        }
+        if (getEditTypes().some(function (type) { return type.label === label; })) {
+          showToast("이미 있는 유형명입니다.");
+          return;
+        }
+        state.editTypes.push({
+          value: createEditTypeValue(label),
+          label: label,
+          tag: tag
+        });
+        editTypeLabelInput.value = "";
+        editTypeTagInput.value = "";
+        saveEditTypes();
+        refreshEditTypeUi();
+        showToast("유형이 등록되었습니다.");
+      }
+
+      function removeEditType(value) {
+        var editTypes = getEditTypes();
+        if (editTypes.length <= 1) {
+          showToast("유형은 최소 1개가 필요합니다.");
+          return;
+        }
+        var index = editTypes.findIndex(function (type) {
+          return type.value === value;
+        });
+        if (index === -1) {
+          return;
+        }
+        var removed = editTypes.splice(index, 1)[0];
+        var fallback = getDefaultEditTypeValue();
+        var changedAnnotations = false;
+        state.annotations.forEach(function (annotation) {
+          if (annotation.editType === value) {
+            annotation.editType = fallback;
+            changedAnnotations = true;
+          }
+        });
+        if (changedAnnotations) {
+          invalidateGeneratedOutput();
+        }
+        saveEditTypes();
+        refreshEditTypeUi();
+        showToast(removed.label + " 유형이 삭제되었습니다.");
+      }
+
+      function refreshEditTypeUi() {
+        renderEditTypeList();
+        renderBubbles();
+        renderAnnotationList();
+        updatePromptPreview();
+        updateButtons();
+      }
+
+      function createEditTypeValue(label) {
+        var base = String(label || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+        var value = base || ("custom-" + createId());
+        while (hasEditType(value)) {
+          value = (base || "custom") + "-" + createId();
+        }
+        return value;
+      }
+
+      function normalizeEditTypeTag(value) {
+        return String(value || "").replace(/[\[\]]/g, "").trim().replace(/\s+/g, " ").toUpperCase();
       }
 
       function handleDocumentDragEnter(event) {
@@ -2172,7 +2460,7 @@
             number: marker.number,
             colorKey: marker.color.key,
             color: marker.color.hex,
-            editType: DEFAULT_EDIT_TYPE,
+            editType: getDefaultEditTypeValue(),
             refId: "",
             point: point,
             text: "",
@@ -2189,7 +2477,7 @@
           number: marker.number,
           colorKey: marker.color.key,
           color: marker.color.hex,
-          editType: DEFAULT_EDIT_TYPE,
+          editType: getDefaultEditTypeValue(),
           refId: "",
           start: point,
           end: point,
@@ -2263,7 +2551,7 @@
           number: drawing.number,
           colorKey: drawing.colorKey,
           color: drawing.color,
-          editType: drawing.editType || DEFAULT_EDIT_TYPE,
+          editType: hasEditType(drawing.editType) ? drawing.editType : getDefaultEditTypeValue(),
           refId: drawing.refId || "",
           text: ""
         };
@@ -2685,19 +2973,19 @@
 
       function buildEditTypeOptions(annotation) {
         var current = getAnnotationEditType(annotation);
-        return EDIT_TYPES.map(function (type) {
+        return getEditTypes().map(function (type) {
           return "<option value=\"" + escapeHtml(type.value) + "\"" + (type.value === current ? " selected" : "") + ">" + escapeHtml(type.label) + "</option>";
         }).join("");
       }
 
       function getAnnotationEditType(annotation) {
-        var value = annotation && annotation.editType ? annotation.editType : DEFAULT_EDIT_TYPE;
-        return EDIT_TYPES.some(function (type) { return type.value === value; }) ? value : DEFAULT_EDIT_TYPE;
+        var value = annotation && annotation.editType ? annotation.editType : getDefaultEditTypeValue();
+        return hasEditType(value) ? value : getDefaultEditTypeValue();
       }
 
       function getEditTypeTag(annotation) {
         var value = getAnnotationEditType(annotation);
-        var match = EDIT_TYPES.find(function (type) { return type.value === value; });
+        var match = getEditTypes().find(function (type) { return type.value === value; });
         return match ? match.tag : "";
       }
 
@@ -2716,7 +3004,7 @@
         if (!annotation) {
           return;
         }
-        annotation.editType = EDIT_TYPES.some(function (type) { return type.value === value; }) ? value : DEFAULT_EDIT_TYPE;
+        annotation.editType = hasEditType(value) ? value : getDefaultEditTypeValue();
         invalidateGeneratedOutput();
         syncEditTypeSelects(id, annotation.editType);
         updatePromptPreview();
