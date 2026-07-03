@@ -1194,7 +1194,7 @@
               <i class="ti ti-photo-plus" aria-hidden="true"></i>
               파일 선택
             </label>
-            <div class="small-note">PNG / JPG / WEBP</div>
+            <div class="small-note">PNG / JPG / WEBP · Ctrl+V 붙여넣기 가능</div>
             <div class="file-meta" id="fileMeta">아직 업로드된 이미지가 없습니다.</div>
           </div>
 
@@ -1529,6 +1529,7 @@
         document.addEventListener("dragover", handleDocumentDragOver);
         document.addEventListener("dragleave", handleDocumentDragLeave);
         document.addEventListener("drop", handleDocumentDrop);
+        document.addEventListener("paste", handleDocumentPaste);
 
         document.querySelectorAll("[data-tool]").forEach(function (button) {
           button.addEventListener("click", function () {
@@ -1657,6 +1658,20 @@
         loadImageFile(file);
       }
 
+      function handleDocumentPaste(event) {
+        if (isTextEditingTarget(event.target)) {
+          return;
+        }
+        var file = getClipboardImageFile(event.clipboardData);
+        if (!file) {
+          return;
+        }
+        event.preventDefault();
+        state.dragDepth = 0;
+        hideDropTarget();
+        loadImageFile(file);
+      }
+
       function showDropTarget() {
         dropZone.classList.add("is-dragging");
         dropOverlay.classList.add("is-visible");
@@ -1680,12 +1695,49 @@
       function getFirstImageFile(dataTransfer) {
         var files = Array.prototype.slice.call(dataTransfer.files || []);
         return files.find(function (file) {
-          return /^image\/(png|jpeg|webp)$/.test(file.type);
+          return isSupportedImageFile(file);
         }) || null;
       }
 
+      function getClipboardImageFile(clipboardData) {
+        if (!clipboardData) {
+          return null;
+        }
+        var items = Array.prototype.slice.call(clipboardData.items || []);
+        for (var i = 0; i < items.length; i += 1) {
+          var item = items[i];
+          if (item.kind === "file" && /^image\/(png|jpeg|webp)$/.test(item.type)) {
+            var itemFile = item.getAsFile();
+            if (isSupportedImageFile(itemFile)) {
+              return normalizeClipboardFile(itemFile);
+            }
+          }
+        }
+        var file = getFirstImageFile(clipboardData);
+        return file ? normalizeClipboardFile(file) : null;
+      }
+
+      function normalizeClipboardFile(file) {
+        if (!file || file.name) {
+          return file;
+        }
+        var extension = file.type === "image/jpeg" ? "jpg" : (file.type === "image/webp" ? "webp" : "png");
+        try {
+          return new File([file], "clipboard-image." + extension, {
+            type: file.type || "image/png",
+            lastModified: Date.now()
+          });
+        } catch (error) {
+          return file;
+        }
+      }
+
+      function isSupportedImageFile(file) {
+        return Boolean(file && /^image\/(png|jpeg|webp)$/.test(file.type));
+      }
+
       function loadImageFile(file) {
-        if (!/^image\/(png|jpeg|webp)$/.test(file.type)) {
+        if (!isSupportedImageFile(file)) {
           showToast("PNG, JPG, WEBP 이미지만 사용할 수 있습니다.");
           return;
         }
