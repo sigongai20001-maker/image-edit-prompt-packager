@@ -1963,11 +1963,7 @@
       }
 
       function getDefaultEditTypeValue() {
-        var editTypes = getEditTypes();
-        var defaultType = editTypes.find(function (type) {
-          return type.value === DEFAULT_EDIT_TYPE;
-        });
-        return (defaultType || editTypes[0]).value;
+        return NO_EDIT_TYPE_VALUE;
       }
 
       function hasEditType(value) {
